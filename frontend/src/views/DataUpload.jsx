@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { apiUpload } from '../api/client';
 
-function UploadZone({ title, icon, description, instructions, accept, endpoint, token }) {
+function UploadZone({ title, icon, color, description, instructions, accept, endpoint, token }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(null);
@@ -30,15 +30,15 @@ function UploadZone({ title, icon, description, instructions, accept, endpoint, 
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
         <span style={{ fontSize: '1.5rem' }}>{icon}</span>
-        <h3 style={{ margin: 0 }}>{title}</h3>
+        <h3 style={{ margin: 0, color }}>{title}</h3>
       </div>
       <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{description}</p>
 
       <div style={{
         background: uploading ? '#f8fafc' : '#f1f5f9',
-        border: `2px dashed ${file ? '#2563eb' : '#cbd5e1'}`,
+        border: `2px dashed ${file ? color : '#cbd5e1'}`,
         borderRadius: 10, padding: '1.25rem', textAlign: 'center', marginBottom: '0.75rem',
         transition: 'border-color 0.2s'
       }}>
@@ -61,8 +61,8 @@ function UploadZone({ title, icon, description, instructions, accept, endpoint, 
           <div style={{ background: '#e2e8f0', borderRadius: 6, height: 10, overflow: 'hidden' }}>
             <div style={{
               background: progress.phase === 'parsing'
-                ? 'linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b)'
-                : '#2563eb',
+                ? `linear-gradient(90deg, ${color}, ${color}88, ${color})`
+                : color,
               backgroundSize: progress.phase === 'parsing' ? '200% 100%' : 'auto',
               height: '100%',
               borderRadius: 6,
@@ -81,7 +81,7 @@ function UploadZone({ title, icon, description, instructions, accept, endpoint, 
 
       {!progress && (
         <button onClick={handleUpload} disabled={!file || uploading}
-          style={file && !uploading ? { background: '#2563eb', color: '#fff', borderColor: '#2563eb' } : {}}>
+          style={file && !uploading ? { background: color, color: '#fff', borderColor: color } : {}}>
           Upload
         </button>
       )}
@@ -131,6 +131,7 @@ export default function DataUpload({ token }) {
         <UploadZone
           title="Apple Health"
           icon="⌚"
+          color="#e84393"
           description="Upload your Apple Health export (ZIP or XML). Only Apple Watch data is imported."
           accept=".zip,.xml"
           endpoint="/upload/apple-health"
@@ -148,7 +149,8 @@ export default function DataUpload({ token }) {
 
         <UploadZone
           title="WHOOP"
-          icon="🟢"
+          icon="⌚"
+          color="#16a34a"
           description="Upload your WHOOP data export (ZIP or individual CSV files)."
           accept=".zip,.csv"
           endpoint="/upload/whoop"
