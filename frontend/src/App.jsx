@@ -100,21 +100,23 @@ export default function App() {
       <header className="header-row">
         <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>HealthStitch</h1>
         <div className="button-row">
-          {recoveryStatus?.active
-            ? <button onClick={endRecoveryMode} style={{ background: '#fef3c7', borderColor: '#f59e0b' }}>End Recovery Mode</button>
-            : <button onClick={() => setShowRecoveryModal(true)}>🩺 Recovery Mode</button>
-          }
+          {!recoveryStatus?.active && (
+            <button onClick={() => setShowRecoveryModal(true)}>🩺 Recovery Mode</button>
+          )}
           <button onClick={logout}>Logout</button>
         </div>
       </header>
 
       {recoveryStatus?.active && (
-        <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 8, padding: '0.75rem 1rem', margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>🩺</span>
-          <span>
-            <strong>Recovery Mode</strong> — {recoveryStatus.active.reason} (Day {recoveryStatus.active.day_number}, since {recoveryStatus.active.start_date}).
-            Baseline comparisons paused.
-          </span>
+        <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 8, padding: '0.6rem 1rem', margin: '0.5rem 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>🩺</span>
+            <span style={{ fontSize: '0.85rem' }}>
+              <strong>Recovery Mode</strong> — {recoveryStatus.active.reason} (Day {recoveryStatus.active.day_number}).
+              Baselines paused.
+            </span>
+          </div>
+          <button onClick={endRecoveryMode} style={{ background: '#fff', borderColor: '#f59e0b', fontSize: '0.8rem', padding: '0.3rem 0.65rem', whiteSpace: 'nowrap' }}>End</button>
         </div>
       )}
 
