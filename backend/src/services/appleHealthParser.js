@@ -9,11 +9,11 @@ const BATCH_SIZE = 500;
 const HK_METRIC_MAP = {
   'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': { type: 'hrv_sdnn', unit: 'ms' },
   'HKQuantityTypeIdentifierRestingHeartRate': { type: 'resting_hr', unit: 'bpm' },
-  'HKQuantityTypeIdentifierActiveEnergyBurned': { type: 'active_energy', unit: 'kcal' },
   'HKQuantityTypeIdentifierOxygenSaturation': { type: 'spo2', unit: 'percent' },
-  'HKQuantityTypeIdentifierRespiratoryRate': { type: 'respiratory_rate', unit: 'breaths_per_min' },
-  'HKQuantityTypeIdentifierHeartRate': { type: 'heart_rate', unit: 'bpm' }
+  'HKQuantityTypeIdentifierRespiratoryRate': { type: 'respiratory_rate', unit: 'breaths_per_min' }
 };
+
+const ACTIVE_ENERGY_TYPE = 'HKQuantityTypeIdentifierActiveEnergyBurned';
 
 const SLEEP_TYPE = 'HKCategoryTypeIdentifierSleepAnalysis';
 
@@ -36,7 +36,7 @@ function toIso(dateStr) {
 
 function isAppleWatchSource(attrs) {
   const source = (attrs.sourceName || '').toLowerCase();
-  return source.includes('apple watch') || source.includes('watch');
+  return source.includes('apple watch');
 }
 
 function durationMs(startIso, endIso) {
@@ -120,6 +120,7 @@ function parseAppleHealthExport(userId, filePath) {
     let metricBatch = [];
     let workoutBatch = [];
     const sleepEntries = [];
+    const dailyActiveEnergy = {};
 
     function flushMetrics() {
       if (metricBatch.length === 0) return;
@@ -158,6 +159,13 @@ function parseAppleHealthExport(userId, filePath) {
               external_id: `apple_export:${mapping.type}:${recordedAt}`
             });
             if (metricBatch.length >= BATCH_SIZE) flushMetrics();
+          }
+        } else if (hkType === ACTIVE_ENERGY_TYPE) {
+          const value = Number(attrs.value);
+          const recordedAt = toIso(attrs.startDate || attrs.endDate);
+          if (Number.isFinite(value) && recordedAt) {
+            const day = recordedAt.slice(0, 10);
+            dailyActiveEnergy[day] = (dailyActiveEnergy[day] || 0) + value;
           }
         } else if (hkType === SLEEP_TYPE) {
           const startIso = toIso(attrs.startDate);
@@ -204,6 +212,19 @@ function parseAppleHealthExport(userId, filePath) {
     parser.on('end', () => {
       flushMetrics();
       flushWorkouts();
+
+      // Flush aggregated daily active energy as one record per day
+      const energyRecords = Object.entries(dailyActiveEnergy).map(([day, total]) => ({
+        metric_type: 'active_energy',
+        value: Math.round(total * 100) / 100,
+        unit: 'kcal',
+        recorded_at: `${day}T23:59:59.000Z`,
+        external_id: `apple_export:active_energy:${day}`
+      }));
+      if (energyRecords.length > 0) {
+        ingestMetricBatch(userId, 'apple_watch', energyRecords);
+        counts.metrics += energyRecords.length;
+      }
 
       const sessions = aggregateSleepSessions(sleepEntries);
       if (sessions.length > 0) {
