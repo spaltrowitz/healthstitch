@@ -1,34 +1,21 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/client';
 
-const TYPE_COLORS = {
-  comparison: '#2563eb',
-  correlation: '#8b5cf6',
-  pattern: '#16a34a',
-  info: '#64748b'
-};
-
-const TYPE_ICONS = {
-  comparison: '⚖️',
-  correlation: '📈',
-  pattern: '🔍',
-  info: 'ℹ️'
-};
-
-function InsightCard({ insight }) {
-  const borderColor = TYPE_COLORS[insight.type] || '#e2e8f0';
+function CompactInsight({ insight }) {
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="card" style={{ borderLeft: `4px solid ${borderColor}` }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.2rem' }}>{TYPE_ICONS[insight.type]}</span>
-        <h3 style={{ margin: 0, fontSize: '1rem' }}>{insight.title}</h3>
+    <div
+      onClick={() => setExpanded(!expanded)}
+      style={{ padding: '0.6rem 0.85rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: '0.85rem' }}>{insight.title}</strong>
+        <span style={{ fontSize: '0.8rem', color: '#94a3b8', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
       </div>
-      <p style={{ margin: '0.5rem 0', lineHeight: 1.6 }}>{insight.body}</p>
-      {insight.detail && (
-        <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5 }}>
-          {insight.detail}
-        </p>
+      <p style={{ fontSize: '0.82rem', color: '#475569', margin: '0.25rem 0 0', lineHeight: 1.4 }}>{insight.body}</p>
+      {expanded && insight.detail && (
+        <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.35rem 0 0', lineHeight: 1.4, borderTop: '1px solid #f1f5f9', paddingTop: '0.35rem' }}>{insight.detail}</p>
       )}
     </div>
   );
@@ -47,22 +34,32 @@ export default function DataInsights({ token }) {
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Analyzing your data…</p>;
 
+  const categories = {
+    'Device Comparison': data.insights.filter(i => i.type === 'comparison' || i.type === 'correlation'),
+    'Patterns & Habits': data.insights.filter(i => i.type === 'pattern'),
+    'Status': data.insights.filter(i => i.type === 'info')
+  };
+
   return (
     <div>
+      <h2>Insights</h2>
       {data.overlap_period && (
-        <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
-          Cross-device analysis period: {data.overlap_period.start} to {data.overlap_period.end}
+        <p style={{ color: '#94a3b8', marginBottom: '1rem', fontSize: '0.8rem' }}>
+          Based on {Math.round((new Date(data.overlap_period.end) - new Date(data.overlap_period.start)) / 86400000)} days of overlapping data
         </p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {data.insights.map((insight, i) => (
-          <InsightCard key={i} insight={insight} />
-        ))}
-      </div>
+      {Object.entries(categories).map(([category, items]) => items.length > 0 && (
+        <div key={category} style={{ marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.4rem' }}>{category.toUpperCase()}</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {items.map((insight, i) => <CompactInsight key={i} insight={insight} />)}
+          </div>
+        </div>
+      ))}
 
       {data.insights.length === 0 && (
-        <p style={{ color: '#64748b' }}>No insights available yet. Upload data from both Apple Watch and WHOOP to see cross-device analysis.</p>
+        <p style={{ color: '#64748b' }}>No insights yet. Upload data from both devices.</p>
       )}
     </div>
   );

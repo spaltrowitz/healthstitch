@@ -65,6 +65,8 @@ export default function WorkoutLog({ token }) {
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Loading workouts...</p>;
 
+  const sportTypes = [...new Set(data.workouts.map(w => sportName(w.sport_type)))].sort();
+
   return (
     <section>
       <h2>Workouts</h2>
@@ -79,7 +81,10 @@ export default function WorkoutLog({ token }) {
         </div>
         <div className="selector-row">
           <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Sport</label>
-          <input value={sport} onChange={(e) => setSport(e.target.value)} placeholder="all or exact sport" />
+          <select value={sport} onChange={(e) => setSport(e.target.value)}>
+            <option value="all">All sports</option>
+            {sportTypes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
         <div className="selector-row">
           <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>From</label>
@@ -110,6 +115,7 @@ export default function WorkoutLog({ token }) {
       <CollapsibleSection
         title="Monthly Training Load"
         subtitle="Cumulative load per month from all sources."
+        defaultOpen={true}
       >
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data.monthly_load}>

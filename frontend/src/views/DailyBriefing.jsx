@@ -173,8 +173,13 @@ export default function DailyBriefing({ token }) {
     return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
   })() : [];
 
-  const topInsights = (insights?.insights || [])
-    .filter(i => i.type !== 'info' && i.type !== 'comparison')
+  const allInsights = insights?.insights || [];
+  const sleepInsights = allInsights.filter(i => i.title?.toLowerCase().includes('sleep') && i.type !== 'info');
+  const hrvInsights = allInsights.filter(i => i.title?.toLowerCase().includes('hrv') || i.title?.toLowerCase().includes('heart rate variability'));
+  const rhrInsights = allInsights.filter(i => i.title?.toLowerCase().includes('resting') || i.title?.toLowerCase().includes('heart rate:'));
+  const usedTitles = new Set([...sleepInsights, ...hrvInsights, ...rhrInsights].map(i => i.title));
+  const otherInsights = allInsights
+    .filter(i => i.type !== 'info' && i.type !== 'comparison' && !i.title?.includes('Recovery Mode') && !usedTitles.has(i.title))
     .slice(0, 3);
 
   return (
@@ -247,57 +252,102 @@ export default function DailyBriefing({ token }) {
                 : ' WHOOP detected more sleep time, possibly including periods Apple missed.'}
             </p>
           )}
+          {apple && whoop && (
+            <div style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              {apple.deep_min != null && whoop.deep_min != null && Math.abs(apple.deep_min - whoop.deep_min) > 10 && (
+                <p style={{ margin: '0.2rem 0' }}>Deep sleep differs by {Math.abs(apple.deep_min - whoop.deep_min)}m — each device uses different algorithms to detect slow-wave sleep from wrist motion and HR.</p>
+              )}
+              {apple.rem_min != null && whoop.rem_min != null && Math.abs(apple.rem_min - whoop.rem_min) > 15 && (
+                <p style={{ margin: '0.2rem 0' }}>REM differs by {Math.abs(apple.rem_min - whoop.rem_min)}m — REM detection from wrist sensors is the least accurate sleep stage for both devices.</p>
+              )}
+              {apple.awake_min != null && whoop.awake_min != null && Math.abs(apple.awake_min - whoop.awake_min) > 10 && (
+                <p style={{ margin: '0.2rem 0' }}>Awake time differs by {Math.abs(apple.awake_min - whoop.awake_min)}m — WHOOP may detect brief awakenings that Apple classifies as light sleep.</p>
+              )}
+            </div>
+          )}
+          {sleepInsights.length > 0 && (
+            <div style={{ marginTop: '0.65rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
+              {sleepInsights.slice(0, 2).map((insight, i) => (
+                <p key={i} style={{ fontSize: '0.75rem', color: '#475569', margin: '0.25rem 0', lineHeight: 1.4 }}>
+                  <strong>{insight.title}</strong> — {insight.body}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 7-day mini charts */}
-      {trends && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-          <div className="card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>HRV — 7 DAYS</div>
-            <ResponsiveContainer width="100%" height={100}>
-              <BarChart data={hrvData} barGap={1}>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} />
-                <Bar dataKey="apple" fill="#2563eb" name="Apple SDNN" radius={[3,3,0,0]} barSize={12} />
-                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP RMSSD" radius={[3,3,0,0]} barSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* 7-day charts */}
+      {trends && (hrvData.length > 0 || rhrData.length > 0 || sleepData.length > 0) && (
+        <>
+          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>7-DAY TRENDS</h3>
+          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', fontSize: '0.7rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#2563eb', display: 'inline-block' }} /> Apple Watch</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.5rem' }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', display: 'inline-block' }} /> WHOOP</span>
           </div>
-          <div className="card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>RESTING HR — 7 DAYS</div>
-            <ResponsiveContainer width="100%" height={100}>
-              <BarChart data={rhrData} barGap={1}>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis hide domain={['dataMin - 3', 'dataMax + 3']} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} />
-                <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[3,3,0,0]} barSize={12} />
-                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[3,3,0,0]} barSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="card" style={{ padding: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>SLEEP — 7 DAYS</div>
-            <ResponsiveContainer width="100%" height={100}>
-              <BarChart data={sleepData} barGap={1}>
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis hide domain={[0, 'dataMax + 1']} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} formatter={(v) => `${v}h`} />
-                <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[3,3,0,0]} barSize={12} />
-                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[3,3,0,0]} barSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+
+          {hrvData.length > 0 && (
+            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>HRV (ms)</span>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Apple uses SDNN · WHOOP uses RMSSD</span>
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={hrvData} barGap={2}>
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 10', 'dataMax + 10']} />
+                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <Bar dataKey="apple" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {rhrData.length > 0 && (
+            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Resting Heart Rate (bpm)</span>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Lower is generally better</span>
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={rhrData} barGap={2}>
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
+                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {sleepData.length > 0 && (
+            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Sleep (hours)</span>
+                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Recommended: 7-9 hours</span>
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={sleepData} barGap={2}>
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} width={25} axisLine={false} tickLine={false} domain={[0, 'dataMax + 1']} />
+                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} formatter={(v) => `${v}h`} />
+                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8', formatter: (v) => `${v}h` }} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8', formatter: (v) => `${v}h` }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Top insights */}
-      {topInsights.length > 0 && (
+      {/* Other insights (non-sleep, non-HRV, non-comparison) */}
+      {otherInsights.length > 0 && (
         <>
           <h3 style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>KEY INSIGHTS</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {topInsights.map((insight, i) => (
+            {otherInsights.map((insight, i) => (
               <div key={i} style={{ padding: '0.55rem 0.75rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: '0.82rem', lineHeight: 1.4 }}>
                 <strong>{insight.title}</strong>
                 <span style={{ color: '#475569' }}> — {insight.body}</span>
