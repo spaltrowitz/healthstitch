@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from './api/client';
-import MorningCheckIn from './views/MorningCheckIn';
+import DailyBriefing from './views/DailyBriefing';
 import TrendsDashboard from './views/TrendsDashboard';
-import DeviceComparison from './views/DeviceComparison';
 import WorkoutLog from './views/WorkoutLog';
-import DataUpload from './views/DataUpload';
 import DataInsights from './views/DataInsights';
-import ScoreExplainer from './views/ScoreExplainer';
+import DataUpload from './views/DataUpload';
 import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
-  { id: 'scores', label: 'Today' },
-  { id: 'trends', label: 'Trends' },
-  { id: 'workouts', label: 'Workouts' },
-  { id: 'insights', label: 'Insights' },
+  { id: 'briefing', label: 'Today' },
+  { id: 'deep-dive', label: 'Deep Dive' },
   { id: 'upload', label: 'Upload' }
 ];
 
@@ -22,7 +18,7 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState('scores');
+  const [activeTab, setActiveTab] = useState('briefing');
   const [syncMessage, setSyncMessage] = useState('');
   const [recoveryStatus, setRecoveryStatus] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -102,7 +98,7 @@ export default function App() {
   return (
     <main className="container">
       <header className="header-row">
-        <h1>HealthStitch</h1>
+        <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>HealthStitch</h1>
         <div className="button-row">
           {recoveryStatus?.active
             ? <button onClick={endRecoveryMode} style={{ background: '#fef3c7', borderColor: '#f59e0b' }}>End Recovery Mode</button>
@@ -136,10 +132,14 @@ export default function App() {
         ))}
       </nav>
 
-      {activeTab === 'scores' && <ScoreExplainer token={token} />}
-      {activeTab === 'trends' && <TrendsDashboard token={token} />}
-      {activeTab === 'workouts' && <WorkoutLog token={token} />}
-      {activeTab === 'insights' && <DataInsights token={token} />}
+      {activeTab === 'briefing' && <DailyBriefing token={token} />}
+      {activeTab === 'deep-dive' && (
+        <>
+          <TrendsDashboard token={token} />
+          <WorkoutLog token={token} />
+          <DataInsights token={token} />
+        </>
+      )}
       {activeTab === 'upload' && <DataUpload token={token} />}
 
       {showRecoveryModal && (
