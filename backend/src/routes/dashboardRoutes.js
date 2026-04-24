@@ -390,4 +390,217 @@ router.get('/workouts', requireAuth, (req, res) => {
   });
 });
 
+router.get('/insights', requireAuth, (req, res) => {
+  const userId = req.user.userId;
+  const insights = [];
+
+  // Determine overlap period
+  const whoopRange = db.prepare(`
+    SELECT MIN(date(recorded_at)) as start, MAX(date(recorded_at)) as end
+    FROM metric_records WHERE user_id = ? AND source = 'whoop'
+  `).get(userId);
+
+  if (!whoopRange || !whoopRange.start) {
+    return res.json({ insights: [{ type: 'info', title: 'No WHOOP data', body: 'Upload WHOOP data to see cross-device insights.' }] });
+  }
+
+  const overlapStart = whoopRange.start;
+  const overlapEnd = whoopRange.end;
+
+  // 1. Sleep duration comparison
+  const sleepComp = db.prepare(`
+    SELECT
+      ROUND(AVG(a.total_duration_ms / 3600000.0), 2) as apple_avg,
+      ROUND(AVG(w.total_duration_ms / 3600000.0), 2) as whoop_avg,
+      ROUND(AVG((a.total_duration_ms - w.total_duration_ms) / 3600000.0), 2) as avg_diff,
+      COUNT(*) as days
+    FROM sleep_records a
+    JOIN sleep_records w ON a.sleep_date = w.sleep_date AND w.source = 'whoop' AND w.user_id = ?
+    WHERE a.source = 'apple_watch' AND a.user_id = ?
+  `).get(userId, userId);
+
+  if (sleepComp && sleepComp.days > 0) {
+    const direction = sleepComp.avg_diff > 0 ? 'longer' : 'shorter';
+    const absDiff = Math.abs(sleepComp.avg_diff);
+    const diffMin = Math.round(absDiff * 60);
+    insights.push({
+      type: 'comparison',
+      title: 'Sleep Duration: Apple Watch vs WHOOP',
+      body: `Over ${sleepComp.days} overlapping nights, Apple Watch reports an average of ${sleepComp.apple_avg}h vs WHOOP's ${sleepComp.whoop_avg}h — Apple Watch records ${diffMin} minutes ${direction} on average.`,
+      detail: absDiff > 0.5
+        ? 'This is a significant difference. Apple Watch may count light dozing as sleep, while WHOOP uses heart rate to detect true sleep onset.'
+        : 'The two devices are closely aligned on sleep tracking.',
+      data: { apple_avg: sleepComp.apple_avg, whoop_avg: sleepComp.whoop_avg, diff_hours: sleepComp.avg_diff, days: sleepComp.days }
+    });
+  }
+
+  // 2. Resting heart rate comparison
+  const rhrComp = db.prepare(`
+    SELECT
+      ROUND(AVG(a.val), 1) as apple_avg,
+      ROUND(AVG(w.val), 1) as whoop_avg,
+      ROUND(AVG(a.val - w.val), 1) as avg_diff,
+      COUNT(*) as days
+    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='resting_hr' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
+    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='resting_hr' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    ON a.d = w.d
+  `).get(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+
+  if (rhrComp && rhrComp.days > 0) {
+    const direction = rhrComp.avg_diff > 0 ? 'higher' : 'lower';
+    insights.push({
+      type: 'comparison',
+      title: 'Resting Heart Rate: Apple Watch vs WHOOP',
+      body: `Over ${rhrComp.days} days, Apple Watch averages ${rhrComp.apple_avg} bpm vs WHOOP's ${rhrComp.whoop_avg} bpm — Apple reads ${Math.abs(rhrComp.avg_diff)} bpm ${direction}.`,
+      detail: 'WHOOP measures RHR during your deepest sleep phase (slow-wave sleep), while Apple Watch samples throughout the night. This can cause a consistent offset between the two.',
+      data: { apple_avg: rhrComp.apple_avg, whoop_avg: rhrComp.whoop_avg, diff_bpm: rhrComp.avg_diff, days: rhrComp.days }
+    });
+  }
+
+  // 3. HRV methodology difference
+  const hrvComp = db.prepare(`
+    SELECT
+      ROUND(AVG(a.val), 1) as apple_avg_sdnn,
+      ROUND(AVG(w.val), 1) as whoop_avg_rmssd,
+      COUNT(*) as days
+    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='hrv_sdnn' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
+    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='hrv_rmssd' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    ON a.d = w.d
+  `).get(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+
+  if (hrvComp && hrvComp.days > 0) {
+    insights.push({
+      type: 'comparison',
+      title: 'HRV: Different Measurements, Different Numbers',
+      body: `Apple Watch HRV (SDNN) averages ${hrvComp.apple_avg_sdnn} ms while WHOOP HRV (RMSSD) averages ${hrvComp.whoop_avg_rmssd} ms over ${hrvComp.days} overlapping days.`,
+      detail: 'These are fundamentally different calculations. SDNN measures overall variability across all heartbeat intervals, while RMSSD measures beat-to-beat changes — more sensitive to parasympathetic (recovery) activity. Comparing their trends is meaningful, but the absolute numbers will always differ.',
+      data: { apple_sdnn: hrvComp.apple_avg_sdnn, whoop_rmssd: hrvComp.whoop_avg_rmssd, days: hrvComp.days }
+    });
+  }
+
+  // 4. HRV trend correlation
+  const hrvTrend = db.prepare(`
+    SELECT a.d, a.val as apple_val, w.val as whoop_val
+    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='hrv_sdnn' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
+    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='hrv_rmssd' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    ON a.d = w.d
+    ORDER BY a.d
+  `).all(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+
+  if (hrvTrend.length >= 7) {
+    const n = hrvTrend.length;
+    const xMean = hrvTrend.reduce((s, r) => s + r.apple_val, 0) / n;
+    const yMean = hrvTrend.reduce((s, r) => s + r.whoop_val, 0) / n;
+    let num = 0, denX = 0, denY = 0;
+    for (const r of hrvTrend) {
+      const dx = r.apple_val - xMean;
+      const dy = r.whoop_val - yMean;
+      num += dx * dy;
+      denX += dx * dx;
+      denY += dy * dy;
+    }
+    const corr = denX && denY ? num / Math.sqrt(denX * denY) : 0;
+    const corrPct = Math.round(Math.abs(corr) * 100);
+
+    let interpretation;
+    if (corr > 0.7) interpretation = 'Your devices strongly agree on HRV trends — when one goes up, the other does too.';
+    else if (corr > 0.4) interpretation = 'Your devices moderately agree on HRV trends. They capture similar patterns but with some day-to-day divergence.';
+    else interpretation = 'Your devices show weak correlation in HRV trends. This is common given the different measurement methods and timing.';
+
+    insights.push({
+      type: 'correlation',
+      title: 'Do Your Devices Agree on HRV Trends?',
+      body: `Correlation: ${corrPct}% (r = ${corr.toFixed(2)}) over ${n} days.`,
+      detail: interpretation,
+      data: { correlation: Math.round(corr * 100) / 100, days: n }
+    });
+  }
+
+  // 5. Recovery vs next-day strain pattern
+  const recoveryStrain = db.prepare(`
+    SELECT
+      CASE WHEN m.value < 33 THEN 'red' WHEN m.value <= 66 THEN 'yellow' ELSE 'green' END as zone,
+      ROUND(AVG(ns.value), 1) as avg_next_strain,
+      COUNT(*) as days
+    FROM metric_records m
+    JOIN metric_records ns ON ns.user_id = ? AND ns.source = 'whoop' AND ns.metric_type = 'daily_strain'
+      AND date(ns.recorded_at) = date(m.recorded_at, '+1 day')
+    WHERE m.user_id = ? AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
+    GROUP BY zone
+  `).all(userId, userId);
+
+  if (recoveryStrain.length > 0) {
+    const zoneMap = {};
+    for (const r of recoveryStrain) zoneMap[r.zone] = r;
+    const parts = [];
+    if (zoneMap.green) parts.push(`Green days (${zoneMap.green.days}): avg strain ${zoneMap.green.avg_next_strain}`);
+    if (zoneMap.yellow) parts.push(`Yellow days (${zoneMap.yellow.days}): avg strain ${zoneMap.yellow.avg_next_strain}`);
+    if (zoneMap.red) parts.push(`Red days (${zoneMap.red.days}): avg strain ${zoneMap.red.avg_next_strain}`);
+
+    insights.push({
+      type: 'pattern',
+      title: 'Recovery Zone → Next Day Activity',
+      body: parts.join('. ') + '.',
+      detail: 'This shows whether you tend to train harder on high-recovery days. Ideally, green days should correlate with higher strain and red days with rest.',
+      data: recoveryStrain
+    });
+  }
+
+  // 6. Sleep consistency
+  const sleepTimes = db.prepare(`
+    SELECT sleep_date, start_at,
+      CAST(strftime('%H', start_at) AS INTEGER) * 60 + CAST(strftime('%M', start_at) AS INTEGER) as onset_minutes
+    FROM sleep_records
+    WHERE user_id = ? AND source = 'whoop' AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
+    ORDER BY sleep_date DESC LIMIT 30
+  `).all(userId);
+
+  if (sleepTimes.length >= 7) {
+    const minutes = sleepTimes.map(s => s.onset_minutes > 720 ? s.onset_minutes - 1440 : s.onset_minutes);
+    const mean = minutes.reduce((a, b) => a + b, 0) / minutes.length;
+    const variance = minutes.reduce((s, m) => s + (m - mean) ** 2, 0) / minutes.length;
+    const stdDev = Math.sqrt(variance);
+    const avgOnset = mean < 0 ? mean + 1440 : mean;
+    const avgHour = Math.floor(avgOnset / 60);
+    const avgMin = Math.round(avgOnset % 60);
+    const timeStr = `${avgHour > 12 ? avgHour - 12 : avgHour}:${String(avgMin).padStart(2, '0')} ${avgHour >= 12 ? 'PM' : 'AM'}`;
+
+    insights.push({
+      type: 'pattern',
+      title: 'Sleep Consistency',
+      body: `Your average bedtime is ${timeStr} with ±${Math.round(stdDev)} minutes variation over the last ${sleepTimes.length} nights.`,
+      detail: stdDev < 30 ? 'Excellent consistency. A regular sleep schedule supports better recovery.' : stdDev < 60 ? 'Moderate consistency. Some variation is normal, but tightening your sleep window could improve recovery.' : 'High variation in bedtime. Irregular sleep schedules can reduce sleep quality even when total hours look fine.',
+      data: { avg_onset_minutes: Math.round(avgOnset), std_dev_minutes: Math.round(stdDev), nights: sleepTimes.length }
+    });
+  }
+
+  // 7. Best and worst recovery days
+  const bestWorst = db.prepare(`
+    SELECT date(recorded_at) as d, value as recovery,
+      (SELECT total_duration_ms / 3600000.0 FROM sleep_records WHERE user_id = ? AND source = 'whoop' AND sleep_date = date(m.recorded_at) LIMIT 1) as sleep_hours,
+      (SELECT value FROM metric_records WHERE user_id = ? AND source = 'whoop' AND metric_type = 'daily_strain' AND date(recorded_at) = date(m.recorded_at, '-1 day') LIMIT 1) as prev_strain
+    FROM metric_records m
+    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score'
+    ORDER BY value DESC
+  `).all(userId, userId, userId);
+
+  if (bestWorst.length >= 5) {
+    const top3 = bestWorst.slice(0, 3);
+    const bottom3 = bestWorst.slice(-3).reverse();
+
+    const topAvgSleep = top3.filter(r => r.sleep_hours).reduce((s, r) => s + r.sleep_hours, 0) / Math.max(top3.filter(r => r.sleep_hours).length, 1);
+    const bottomAvgSleep = bottom3.filter(r => r.sleep_hours).reduce((s, r) => s + r.sleep_hours, 0) / Math.max(bottom3.filter(r => r.sleep_hours).length, 1);
+
+    insights.push({
+      type: 'pattern',
+      title: 'What Drives Your Best vs Worst Recovery?',
+      body: `Best 3 days (avg ${Math.round(top3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${topAvgSleep.toFixed(1)}h sleep. Worst 3 days (avg ${Math.round(bottom3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${bottomAvgSleep.toFixed(1)}h sleep.`,
+      detail: 'Sleep duration is the strongest predictor of recovery. Other factors include previous-day strain, alcohol, and sleep consistency.',
+      data: { best: top3, worst: bottom3 }
+    });
+  }
+
+  return res.json({ overlap_period: { start: overlapStart, end: overlapEnd }, insights });
+});
+
 module.exports = router;

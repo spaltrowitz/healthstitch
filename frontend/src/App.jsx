@@ -5,12 +5,14 @@ import TrendsDashboard from './views/TrendsDashboard';
 import DeviceComparison from './views/DeviceComparison';
 import WorkoutLog from './views/WorkoutLog';
 import DataUpload from './views/DataUpload';
+import DataInsights from './views/DataInsights';
 
 const TABS = [
   { id: 'morning', label: 'Morning Check-In' },
   { id: 'trends', label: 'Trends Dashboard' },
   { id: 'comparison', label: 'Device Comparison' },
   { id: 'workouts', label: 'Workout Log' },
+  { id: 'insights', label: 'Insights' },
   { id: 'upload', label: 'Upload Data' }
 ];
 
@@ -108,6 +110,7 @@ export default function App() {
       {activeTab === 'trends' && <TrendsDashboard token={token} />}
       {activeTab === 'comparison' && <DeviceComparison token={token} />}
       {activeTab === 'workouts' && <WorkoutLog token={token} />}
+      {activeTab === 'insights' && <DataInsights token={token} />}
       {activeTab === 'upload' && <DataUpload token={token} />}
     </main>
   );
