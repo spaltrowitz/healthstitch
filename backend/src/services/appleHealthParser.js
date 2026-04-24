@@ -137,6 +137,7 @@ function parseAppleHealthExport(userId, filePath) {
     }
 
     const parser = sax.createStream(true, { trim: true });
+    let currentWorkout = null;
 
     parser.on('opentag', (node) => {
       const attrs = node.attributes;
@@ -196,15 +197,38 @@ function parseAppleHealthExport(userId, filePath) {
         const totalEnergy = Number(attrs.totalEnergyBurned);
         const distance = Number(attrs.totalDistance);
 
-        workoutBatch.push({
+        currentWorkout = {
           sport_type: sportType,
           start_at: startAt,
           end_at: endAt,
           duration_ms: Math.round(durationMs),
           energy_kcal: Number.isFinite(totalEnergy) ? totalEnergy : null,
           distance_m: Number.isFinite(distance) ? distance * 1000 : null,
+          avg_hr: null,
+          max_hr: null,
           external_id: `apple_export:workout:${startAt}`
-        });
+        };
+      } else if (node.name === 'WorkoutStatistics' && currentWorkout) {
+        const statType = attrs.type || '';
+        if (statType.includes('HeartRate')) {
+          const avg = Number(attrs.average);
+          const max = Number(attrs.maximum);
+          if (Number.isFinite(avg)) currentWorkout.avg_hr = Math.round(avg);
+          if (Number.isFinite(max)) currentWorkout.max_hr = Math.round(max);
+        } else if (statType.includes('ActiveEnergyBurned') || statType.includes('EnergyBurned')) {
+          const sum = Number(attrs.sum);
+          if (Number.isFinite(sum) && !currentWorkout.energy_kcal) currentWorkout.energy_kcal = Math.round(sum);
+        } else if (statType.includes('Distance')) {
+          const sum = Number(attrs.sum);
+          if (Number.isFinite(sum) && !currentWorkout.distance_m) currentWorkout.distance_m = Math.round(sum * 1000);
+        }
+      }
+    });
+
+    parser.on('closetag', (name) => {
+      if (name === 'Workout' && currentWorkout) {
+        workoutBatch.push(currentWorkout);
+        currentWorkout = null;
         if (workoutBatch.length >= BATCH_SIZE) flushWorkouts();
       }
     });

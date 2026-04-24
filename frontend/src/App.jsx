@@ -10,8 +10,7 @@ import ScoreExplainer from './views/ScoreExplainer';
 import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
-  { id: 'scores', label: 'Score Explainer' },
-  { id: 'morning', label: 'Morning Check-In' },
+  { id: 'scores', label: 'Today' },
   { id: 'trends', label: 'Trends' },
   { id: 'comparison', label: 'Comparison' },
   { id: 'workouts', label: 'Workouts' },
@@ -139,7 +138,6 @@ export default function App() {
       </nav>
 
       {activeTab === 'scores' && <ScoreExplainer token={token} />}
-      {activeTab === 'morning' && <MorningCheckIn token={token} />}
       {activeTab === 'trends' && <TrendsDashboard token={token} />}
       {activeTab === 'comparison' && <DeviceComparison token={token} />}
       {activeTab === 'workouts' && <WorkoutLog token={token} />}
