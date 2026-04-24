@@ -145,21 +145,37 @@ export default function DailyBriefing({ token }) {
   const apple = scores.sleep?.apple_watch;
   const whoop = scores.sleep?.whoop;
 
-  const hrvSparkline = trends?.hrv?.filter(r => r.source === 'whoop' || r.metric_type === 'hrv_sdnn')
-    .reduce((acc, r) => {
-      const e = acc.find(a => a.date === r.date);
-      if (e) e[r.source] = r.value; else acc.push({ date: r.date, [r.source]: r.value });
-      return acc;
-    }, []) || [];
-  const rhrSparkline = trends?.resting_hr?.reduce((acc, r) => {
-    const e = acc.find(a => a.date === r.date);
-    if (e) e[r.source] = r.value; else acc.push({ date: r.date, [r.source]: r.value });
-    return acc;
-  }, []) || [];
-  const sleepSparkline = trends?.sleep?.filter(r => r.source === 'whoop')
-    .map(r => ({ date: r.date, hours: +(r.total_duration_ms / 3600000).toFixed(1) })) || [];
+  const hrvData = trends?.hrv ? (() => {
+    const map = new Map();
+    for (const r of trends.hrv) {
+      if (!map.has(r.date)) map.set(r.date, { date: r.date.slice(5) });
+      const key = r.source === 'whoop' ? 'whoop' : 'apple';
+      map.get(r.date)[key] = +r.value.toFixed(0);
+    }
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  })() : [];
 
-  const topInsights = (insights?.insights || []).filter(i => i.type !== 'info').slice(0, 3);
+  const rhrData = trends?.resting_hr ? (() => {
+    const map = new Map();
+    for (const r of trends.resting_hr) {
+      if (!map.has(r.date)) map.set(r.date, { date: r.date.slice(5) });
+      map.get(r.date)[r.source] = +r.value.toFixed(0);
+    }
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  })() : [];
+
+  const sleepData = trends?.sleep ? (() => {
+    const map = new Map();
+    for (const r of trends.sleep) {
+      if (!map.has(r.date)) map.set(r.date, { date: r.date.slice(5) });
+      map.get(r.date)[r.source] = +(r.total_duration_ms / 3600000).toFixed(1);
+    }
+    return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
+  })() : [];
+
+  const topInsights = (insights?.insights || [])
+    .filter(i => i.type !== 'info' && i.type !== 'comparison')
+    .slice(0, 3);
 
   return (
     <section>
@@ -223,23 +239,55 @@ export default function DailyBriefing({ token }) {
               }
             </div>
           )}
+          {apple && whoop && Math.abs(apple.total_hours - whoop.total_hours) > 0.1 && (
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', lineHeight: 1.4 }}>
+              {Math.round(Math.abs(apple.total_hours - whoop.total_hours) * 60)} min difference —
+              {apple.total_hours > whoop.total_hours
+                ? ' Apple counts more time in bed as sleep. WHOOP is stricter about detecting actual sleep onset.'
+                : ' WHOOP detected more sleep time, possibly including periods Apple missed.'}
+            </p>
+          )}
         </div>
       )}
 
-      {/* 7-day sparklines */}
+      {/* 7-day mini charts */}
       {trends && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-          <div className="card" style={{ padding: '0.65rem' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginBottom: '0.2rem' }}>HRV — 7 DAYS</div>
-            <Sparkline data={hrvSparkline} dataKey="whoop" color="#8b5cf6" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div className="card" style={{ padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>HRV — 7 DAYS</div>
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={hrvData} barGap={1}>
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} />
+                <Bar dataKey="apple" fill="#2563eb" name="Apple SDNN" radius={[3,3,0,0]} barSize={12} />
+                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP RMSSD" radius={[3,3,0,0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="card" style={{ padding: '0.65rem' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginBottom: '0.2rem' }}>RESTING HR — 7 DAYS</div>
-            <Sparkline data={rhrSparkline} dataKey="whoop" color="#ef4444" />
+          <div className="card" style={{ padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>RESTING HR — 7 DAYS</div>
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={rhrData} barGap={1}>
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis hide domain={['dataMin - 3', 'dataMax + 3']} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} />
+                <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[3,3,0,0]} barSize={12} />
+                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[3,3,0,0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="card" style={{ padding: '0.65rem' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginBottom: '0.2rem' }}>SLEEP — 7 DAYS</div>
-            <Sparkline data={sleepSparkline} dataKey="hours" color="#3b82f6" />
+          <div className="card" style={{ padding: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>SLEEP — 7 DAYS</div>
+            <ResponsiveContainer width="100%" height={100}>
+              <BarChart data={sleepData} barGap={1}>
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                <YAxis hide domain={[0, 'dataMax + 1']} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem', borderRadius: 6 }} formatter={(v) => `${v}h`} />
+                <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[3,3,0,0]} barSize={12} />
+                <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[3,3,0,0]} barSize={12} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
