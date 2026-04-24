@@ -35,7 +35,7 @@ function toIso(dateStr) {
 }
 
 function isAppleWatchSource(attrs) {
-  const source = (attrs.sourceName || '').toLowerCase();
+  const source = (attrs.sourceName || '').toLowerCase().replace(/\u00a0/g, ' ');
   return source.includes('apple watch');
 }
 

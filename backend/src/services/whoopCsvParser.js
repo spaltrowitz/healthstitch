@@ -220,13 +220,13 @@ async function parseWhoopExport(userId, filePath) {
     const content = fs.readFileSync(filePath, 'utf-8');
     const firstLine = content.split('\n')[0].toLowerCase();
 
-    if (firstLine.includes('recovery') || firstLine.includes('strain') || firstLine.includes('cycle') || firstLine.includes('day strain')) {
-      const result = parseCyclesCsv(userId, content);
-      counts.metrics += result.metrics;
-    } else if (firstLine.includes('sleep') || firstLine.includes('nap')) {
+    if (firstLine.includes('sleep onset') || firstLine.includes('nap')) {
       const result = parseSleepsCsv(userId, content);
       counts.sleeps += result.sleeps;
-    } else if (firstLine.includes('workout') || firstLine.includes('activity')) {
+    } else if (firstLine.includes('workout start') || firstLine.includes('activity name')) {
+      const result = parseWorkoutsCsv(userId, content);
+      counts.workouts += result.workouts;
+    } else if (firstLine.includes('recovery') || firstLine.includes('strain') || firstLine.includes('day strain')) {
       const result = parseWorkoutsCsv(userId, content);
       counts.workouts += result.workouts;
     } else {
