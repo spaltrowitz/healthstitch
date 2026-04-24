@@ -104,7 +104,6 @@ export default function App() {
       <header className="header-row">
         <h1>HealthStitch</h1>
         <div className="button-row">
-          <button onClick={syncWhoop}>Sync WHOOP</button>
           {recoveryStatus?.active
             ? <button onClick={endRecoveryMode} style={{ background: '#fef3c7', borderColor: '#f59e0b' }}>End Recovery Mode</button>
             : <button onClick={() => setShowRecoveryModal(true)}>🩺 Recovery Mode</button>
