@@ -155,3 +155,6 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 - MyFitnessPal (nutrition — calories, macros, meal logging)
 - Other health lifestyle apps (Peloton, Strong, SleepWatch, etc.)
 - Body composition trends and correlation with recovery/performance
+
+### Feature Backlog
+- **Recovery Mode / Injury Pause** — User-activated mode for injury, surgery, illness, or any out-of-normal-routine period. While active: data is still tracked but excluded from baseline calculations, recommendations shift to recovery-focused guidance (not "ready to train"), insights acknowledge the abnormal period instead of flagging metrics as concerning. This addresses a real gap — neither WHOOP nor Apple Watch handle this today.
