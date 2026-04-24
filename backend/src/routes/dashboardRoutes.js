@@ -344,16 +344,73 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     } : null
   };
 
+  // Build plain-English summary
+  const summaryParts = [];
+  const activeRecovery = db.prepare(`
+    SELECT reason, start_date FROM recovery_periods
+    WHERE user_id = ? AND end_date IS NULL LIMIT 1
+  `).get(userId);
+
+  if (activeRecovery) {
+    const dayNum = Math.floor((Date.now() - new Date(activeRecovery.start_date).getTime()) / 86400000) + 1;
+    summaryParts.push(`You're on day ${dayNum} of recovery from ${activeRecovery.reason.toLowerCase()}, so baseline comparisons are paused.`);
+  }
+
+  if (whoopSpo2 != null && whoopSpo2 < 90) {
+    summaryParts.push(`Your blood oxygen is low (${whoopSpo2.toFixed(1)}%) — this is the main reason WHOOP shows ${recoveryScore || '--'}% recovery. If this is medication-related, your actual recovery is likely better than the score suggests.`);
+  } else if (recoveryScore != null) {
+    if (recoveryScore > 66) summaryParts.push(`WHOOP says you're well-recovered at ${recoveryScore}% — a good day to push yourself.`);
+    else if (recoveryScore > 33) summaryParts.push(`WHOOP shows ${recoveryScore}% recovery — moderate. Listen to how your body feels.`);
+    else summaryParts.push(`Recovery is low at ${recoveryScore}%. Your body is asking for rest.`);
+  }
+
+  if (whoopSleep && appleSleep) {
+    const whoopH = (whoopSleep.total_duration_ms / 3600000).toFixed(1);
+    const appleH = (appleSleep.total_duration_ms / 3600000).toFixed(1);
+    const diff = Math.abs(whoopH - appleH);
+    if (diff > 0.5) {
+      const longer = Number(appleH) > Number(whoopH) ? 'Apple Watch' : 'WHOOP';
+      summaryParts.push(`${longer} recorded ${(diff * 60).toFixed(0)} more minutes of sleep — it likely counts light dozing differently.`);
+    } else {
+      summaryParts.push(`Both devices agree on ~${whoopH}h of sleep last night.`);
+    }
+  }
+
+  if (whoopSleep?.sleep_need_ms) {
+    const needH = (whoopSleep.sleep_need_ms / 3600000).toFixed(1);
+    const actualH = (whoopSleep.total_duration_ms / 3600000).toFixed(1);
+    if (Number(actualH) > Number(needH)) {
+      summaryParts.push(`You slept ${(actualH - needH).toFixed(1)}h more than your ${needH}h sleep need — plenty of rest.`);
+    } else {
+      summaryParts.push(`You needed ${needH}h but only got ${actualH}h — a ${((needH - actualH) * 60).toFixed(0)}-minute sleep debt.`);
+    }
+  }
+
+  if (prevStrain != null) {
+    if (prevStrain < 5) summaryParts.push(`Yesterday was very light (strain ${prevStrain.toFixed(1)}/21), so your body didn't need much recovery.`);
+    else if (prevStrain > 14) summaryParts.push(`High strain yesterday (${prevStrain.toFixed(1)}/21) means your body needs extra recovery today.`);
+  }
+
+  const summary = summaryParts.join(' ');
+
+  // Build factor-level plain English
+  const factorSummary = [];
+  const highImpact = factors.filter(f => f.impact === 'high');
+  const medImpact = factors.filter(f => f.impact === 'medium');
+  if (highImpact.length > 0) {
+    factorSummary.push(`${highImpact.map(f => f.metric).join(' and ')} ${highImpact.length === 1 ? 'is' : 'are'} having the biggest impact on your scores today.`);
+  }
+  if (medImpact.length > 0) {
+    factorSummary.push(`${medImpact.map(f => f.metric).join(', ')} — worth keeping an eye on but not alarming.`);
+  }
+
   return res.json({
     date: day,
     sleep: sleepComparison,
     scores,
     factors,
-    summary: whoopSpo2 != null && whoopSpo2 < 90
-      ? `Your WHOOP recovery (${recoveryScore || '--'}%) is likely depressed by low blood oxygen (${whoopSpo2.toFixed(1)}%). If this is medication-related, your actual recovery may be better than the score suggests.`
-      : recoveryScore != null && recoveryScore < 50
-        ? `Low recovery (${recoveryScore}%) — check HRV and sleep quality factors below.`
-        : `Recovery looks ${recoveryScore > 66 ? 'good' : 'moderate'}. See factor breakdown below.`
+    summary,
+    factor_summary: factorSummary.join(' ')
   });
 });
 

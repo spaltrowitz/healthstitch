@@ -238,9 +238,11 @@ export default function ScoreExplainer({ token }) {
 
       {/* Factor Breakdown */}
       <h3 style={{ marginTop: '1.5rem' }}>Factor Breakdown</h3>
-      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.25rem 0 0.75rem' }}>
-        What's driving your scores today — side-by-side from each device.
-      </p>
+      {data.factor_summary && (
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '0.75rem', fontSize: '0.85rem', color: '#334155', lineHeight: 1.6, borderLeft: '3px solid #94a3b8' }}>
+          {data.factor_summary}
+        </div>
+      )}
       {data.factors.map((f, i) => <FactorRow key={i} factor={f} />)}
 
       {data.factors.length === 0 && (

@@ -12,7 +12,6 @@ import RecoveryModeModal from './components/RecoveryModeModal';
 const TABS = [
   { id: 'scores', label: 'Today' },
   { id: 'trends', label: 'Trends' },
-  { id: 'comparison', label: 'Comparison' },
   { id: 'workouts', label: 'Workouts' },
   { id: 'insights', label: 'Insights' },
   { id: 'upload', label: 'Upload' }
@@ -139,7 +138,6 @@ export default function App() {
 
       {activeTab === 'scores' && <ScoreExplainer token={token} />}
       {activeTab === 'trends' && <TrendsDashboard token={token} />}
-      {activeTab === 'comparison' && <DeviceComparison token={token} />}
       {activeTab === 'workouts' && <WorkoutLog token={token} />}
       {activeTab === 'insights' && <DataInsights token={token} />}
       {activeTab === 'upload' && <DataUpload token={token} />}
