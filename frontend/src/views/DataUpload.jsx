@@ -4,6 +4,7 @@ import { apiUpload } from '../api/client';
 function UploadZone({ title, description, instructions, accept, endpoint, token }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
@@ -12,17 +13,26 @@ function UploadZone({ title, description, instructions, accept, endpoint, token 
     setUploading(true);
     setError('');
     setResult(null);
+    setProgress({ phase: 'uploading', percent: 0 });
 
     try {
-      const data = await apiUpload(endpoint, file, token);
+      const data = await apiUpload(endpoint, file, token, setProgress);
       setResult(data.ingested);
       setFile(null);
+      setProgress(null);
     } catch (err) {
       setError(err.message);
+      setProgress(null);
     } finally {
       setUploading(false);
     }
   }
+
+  const statusText = progress
+    ? progress.phase === 'uploading'
+      ? `Uploading… ${progress.percent}%`
+      : 'Parsing data — this may take a minute for large files…'
+    : 'Upload';
 
   return (
     <div className="card">
@@ -33,6 +43,7 @@ function UploadZone({ title, description, instructions, accept, endpoint, token 
         <input
           type="file"
           accept={accept}
+          disabled={uploading}
           onChange={(e) => { setFile(e.target.files[0]); setResult(null); setError(''); }}
           style={{ marginBottom: '0.5rem' }}
         />
@@ -40,8 +51,25 @@ function UploadZone({ title, description, instructions, accept, endpoint, token 
       </div>
 
       <button onClick={handleUpload} disabled={!file || uploading}>
-        {uploading ? 'Uploading & Parsing…' : 'Upload'}
+        {statusText}
       </button>
+
+      {progress && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <div style={{ background: '#e2e8f0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+            <div style={{
+              background: progress.phase === 'parsing' ? '#f59e0b' : '#2563eb',
+              height: '100%',
+              width: progress.phase === 'parsing' ? '100%' : `${progress.percent}%`,
+              transition: 'width 0.3s',
+              animation: progress.phase === 'parsing' ? 'pulse 1.5s infinite' : 'none'
+            }} />
+          </div>
+          <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>
+            {progress.phase === 'parsing' ? '⏳ Server is parsing your file…' : `${progress.percent}% uploaded`}
+          </p>
+        </div>
+      )}
 
       {result && (
         <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8 }}>
