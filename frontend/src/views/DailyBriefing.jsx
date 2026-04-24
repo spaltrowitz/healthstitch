@@ -163,17 +163,6 @@ export default function DailyBriefing({ token }) {
 
   return (
     <section>
-      {/* Recovery banner */}
-      {inRecovery && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '0.65rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-          <span style={{ fontSize: '1.2rem' }}>��</span>
-          <div>
-            <strong style={{ color: '#92400e' }}>{checkin.recommendation}</strong>
-            <span style={{ color: '#a16207' }}> — Day {checkin.recovery_mode.day_number} ({checkin.recovery_mode.reason})</span>
-          </div>
-        </div>
-      )}
-
       {/* Gauges row */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '0.5rem' }}>
