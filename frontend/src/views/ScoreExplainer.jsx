@@ -9,6 +9,13 @@ const ZONE_STYLES = {
   green: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' }
 };
 
+function fmtMin(m) {
+  if (m == null) return '--';
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return h > 0 ? `${h}h ${min}m` : `${min}m`;
+}
+
 function SleepStageBar({ label, apple, whoop, maxMin }) {
   const scale = maxMin > 0 ? 100 / maxMin : 0;
   return (
@@ -20,8 +27,8 @@ function SleepStageBar({ label, apple, whoop, maxMin }) {
             {apple != null && <div style={{ background: '#2563eb', height: '100%', width: `${apple * scale}%`, borderRadius: 4 }} />}
           </div>
         </div>
-        <span style={{ fontSize: '0.75rem', width: 42, textAlign: 'right', color: '#2563eb' }}>{apple != null ? `${apple}m` : '--'}</span>
-        <span style={{ fontSize: '0.75rem', width: 42, textAlign: 'right', color: '#16a34a' }}>{whoop != null ? `${whoop}m` : '--'}</span>
+        <span style={{ fontSize: '0.75rem', width: 52, textAlign: 'right', color: '#2563eb' }}>{fmtMin(apple)}</span>
+        <span style={{ fontSize: '0.75rem', width: 52, textAlign: 'right', color: '#16a34a' }}>{fmtMin(whoop)}</span>
         <div style={{ flex: 1 }}>
           <div style={{ background: '#e2e8f0', borderRadius: 4, height: 14, overflow: 'hidden', direction: 'rtl' }}>
             {whoop != null && <div style={{ background: '#16a34a', height: '100%', width: `${whoop * scale}%`, borderRadius: 4 }} />}

@@ -153,6 +153,7 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 ### V3 — Lifestyle & body composition
 - Smart scale integration (eufy Life — weight, body fat %, BMI, lean mass)
 - MyFitnessPal (nutrition — calories, macros, meal logging)
+- Perfectly Snug smart topper (sleep environment — bed temperature, surface data)
 - Other health lifestyle apps (Peloton, Strong, SleepWatch, etc.)
 - Body composition trends and correlation with recovery/performance
 

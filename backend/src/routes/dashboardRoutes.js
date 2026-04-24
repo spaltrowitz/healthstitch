@@ -832,6 +832,144 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
+  // 8. Workout Impact on Recovery
+  const workoutImpact = db.prepare(`
+    SELECT
+      CASE WHEN strain < 8 THEN 'low' WHEN strain <= 14 THEN 'moderate' ELSE 'high' END as intensity,
+      ROUND(AVG(next_recovery), 1) as avg_next_recovery,
+      COUNT(*) as workouts
+    FROM (
+      SELECT w.strain,
+        (SELECT value FROM metric_records WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score'
+         AND date(recorded_at) = date(w.start_at, '+1 day') LIMIT 1) as next_recovery
+      FROM workout_records w
+      WHERE w.user_id = ? AND w.source = 'whoop' AND w.strain IS NOT NULL
+    )
+    WHERE next_recovery IS NOT NULL
+    GROUP BY intensity
+  `).all(userId, userId);
+
+  if (workoutImpact.length > 0) {
+    const parts = workoutImpact.map(w => `${w.intensity} strain (${w.workouts}x): ${w.avg_next_recovery}% next-day recovery`);
+    insights.push({
+      type: 'pattern',
+      title: '🏋️ Workout Impact on Recovery',
+      body: parts.join('. ') + '.',
+      detail: 'Shows how workout intensity affects your next-day recovery. Higher strain should ideally be followed by adequate sleep to maintain recovery.'
+    });
+  }
+
+  // 9. Sleep Quality vs Quantity
+  const sleepQuality = db.prepare(`
+    SELECT
+      ROUND(AVG(total_duration_ms / 3600000.0), 1) as avg_total_hours,
+      ROUND(AVG(CASE WHEN slow_wave_ms IS NOT NULL THEN slow_wave_ms * 100.0 / total_duration_ms END), 1) as avg_deep_pct,
+      ROUND(AVG(CASE WHEN rem_ms IS NOT NULL THEN rem_ms * 100.0 / total_duration_ms END), 1) as avg_rem_pct,
+      ROUND(AVG(CASE WHEN light_ms IS NOT NULL THEN light_ms * 100.0 / total_duration_ms END), 1) as avg_light_pct,
+      COUNT(*) as nights
+    FROM sleep_records
+    WHERE user_id = ? AND source = 'whoop'
+      AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
+  `).get(userId);
+
+  if (sleepQuality && sleepQuality.nights >= 7) {
+    const deepStatus = sleepQuality.avg_deep_pct < 15 ? 'below the recommended 15-20%' : 'within the healthy 15-20% range';
+    const remStatus = sleepQuality.avg_rem_pct < 20 ? 'below the recommended 20-25%' : 'within the healthy 20-25% range';
+    insights.push({
+      type: 'pattern',
+      title: '😴 Sleep Quality Breakdown',
+      body: `Over ${sleepQuality.nights} nights: ${sleepQuality.avg_total_hours}h avg total. Deep sleep: ${sleepQuality.avg_deep_pct}% (${deepStatus}). REM: ${sleepQuality.avg_rem_pct}% (${remStatus}). Light: ${sleepQuality.avg_light_pct}%.`,
+      detail: 'Deep sleep is critical for physical recovery and immune function. REM supports memory consolidation and emotional regulation. Getting enough hours but low deep/REM percentages suggests sleep quality issues.'
+    });
+  }
+
+  // 10. Weekend vs Weekday patterns
+  const weekdayPattern = db.prepare(`
+    SELECT
+      CASE WHEN CAST(strftime('%w', sleep_date) AS INTEGER) IN (0, 6) THEN 'weekend' ELSE 'weekday' END as day_type,
+      ROUND(AVG(total_duration_ms / 3600000.0), 2) as avg_hours,
+      COUNT(*) as nights
+    FROM sleep_records
+    WHERE user_id = ? AND source = 'whoop'
+      AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
+    GROUP BY day_type
+  `).all(userId);
+
+  if (weekdayPattern.length === 2) {
+    const weekday = weekdayPattern.find(r => r.day_type === 'weekday');
+    const weekend = weekdayPattern.find(r => r.day_type === 'weekend');
+    if (weekday && weekend) {
+      const diff = Math.abs(weekend.avg_hours - weekday.avg_hours);
+      const direction = weekend.avg_hours > weekday.avg_hours ? 'more' : 'less';
+      insights.push({
+        type: 'pattern',
+        title: '📅 Weekend vs Weekday Sleep',
+        body: `Weekdays: ${weekday.avg_hours}h avg (${weekday.nights} nights). Weekends: ${weekend.avg_hours}h avg (${weekend.nights} nights). You sleep ${(diff * 60).toFixed(0)} minutes ${direction} on weekends.`,
+        detail: diff > 1 ? 'A difference of more than 1 hour suggests social jet lag — your body\'s clock shifts on weekends. This can reduce sleep quality even when total hours increase.' : 'Good consistency between weekdays and weekends. This supports a stable circadian rhythm.'
+      });
+    }
+  }
+
+  // 11. Optimal Sleep Window
+  const sleepRecoveryCorr = db.prepare(`
+    SELECT
+      CASE
+        WHEN s.total_duration_ms / 3600000.0 < 6.5 THEN 'under6.5h'
+        WHEN s.total_duration_ms / 3600000.0 < 7.5 THEN '6.5-7.5h'
+        WHEN s.total_duration_ms / 3600000.0 < 8.5 THEN '7.5-8.5h'
+        WHEN s.total_duration_ms / 3600000.0 < 9.5 THEN '8.5-9.5h'
+        ELSE 'over9.5h'
+      END as bucket,
+      ROUND(AVG(m.value), 1) as avg_recovery,
+      COUNT(*) as nights
+    FROM sleep_records s
+    JOIN metric_records m ON m.user_id = ? AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
+      AND date(m.recorded_at) = s.sleep_date
+    WHERE s.user_id = ? AND s.source = 'whoop'
+      AND (s.metadata_json IS NULL OR s.metadata_json NOT LIKE '%"nap":true%')
+    GROUP BY bucket
+    HAVING nights >= 3
+    ORDER BY avg_recovery DESC
+  `).all(userId, userId);
+
+  if (sleepRecoveryCorr.length >= 2) {
+    const best = sleepRecoveryCorr[0];
+    const parts = sleepRecoveryCorr.map(b => `${b.bucket}: ${b.avg_recovery}% recovery (${b.nights} nights)`);
+    insights.push({
+      type: 'pattern',
+      title: '🎯 Your Optimal Sleep Duration',
+      body: `Your best recovery (${best.avg_recovery}%) happens in the ${best.bucket} range. ${parts.join('. ')}.`,
+      detail: 'More sleep isn\'t always better — oversleeping can indicate poor sleep quality or excessive sleep need from high strain. Find your sweet spot.'
+    });
+  }
+
+  // 12. SpO2 / Medication Impact
+  const spo2Trend = db.prepare(`
+    SELECT date(recorded_at) as d, value
+    FROM metric_records
+    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'spo2'
+    ORDER BY recorded_at DESC
+    LIMIT 14
+  `).all(userId);
+
+  if (spo2Trend.length >= 5) {
+    const recent7 = spo2Trend.slice(0, 7);
+    const prior7 = spo2Trend.slice(7);
+    const recentAvg = recent7.reduce((s, r) => s + r.value, 0) / recent7.length;
+    const priorAvg = prior7.length > 0 ? prior7.reduce((s, r) => s + r.value, 0) / prior7.length : null;
+    const lowDays = recent7.filter(r => r.value < 90).length;
+
+    if (lowDays > 0) {
+      insights.push({
+        type: 'comparison',
+        title: '🫁 Blood Oxygen Impact',
+        body: `SpO2 was below 90% on ${lowDays} of the last 7 days (avg ${recentAvg.toFixed(1)}%).${priorAvg ? ` Previous 7 days averaged ${priorAvg.toFixed(1)}%.` : ''}`,
+        detail: 'Low SpO2 significantly depresses WHOOP recovery scores. If medication-related, your actual recovery state may be better than WHOOP reports. Consider this when interpreting your recovery scores.',
+        data: { recent_avg: Math.round(recentAvg * 10) / 10, prior_avg: priorAvg ? Math.round(priorAvg * 10) / 10 : null, low_days: lowDays }
+      });
+    }
+  }
+
   return res.json({ overlap_period: { start: overlapStart, end: overlapEnd }, insights });
 });
 
