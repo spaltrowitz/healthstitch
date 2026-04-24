@@ -245,34 +245,12 @@ export default function DailyBriefing({ token }) {
             </div>
           )}
           {apple && whoop && Math.abs(apple.total_hours - whoop.total_hours) > 0.1 && (
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', lineHeight: 1.4 }}>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', lineHeight: 1.4 }}>
               {Math.round(Math.abs(apple.total_hours - whoop.total_hours) * 60)} min difference —
               {apple.total_hours > whoop.total_hours
-                ? ' Apple counts more time in bed as sleep. WHOOP is stricter about detecting actual sleep onset.'
-                : ' WHOOP detected more sleep time, possibly including periods Apple missed.'}
+                ? ' Apple includes more time in bed. WHOOP uses HR to detect actual sleep onset, so it\'s stricter.'
+                : ' WHOOP detected slightly more sleep.'}
             </p>
-          )}
-          {apple && whoop && (
-            <div style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5 }}>
-              {apple.deep_min != null && whoop.deep_min != null && Math.abs(apple.deep_min - whoop.deep_min) > 10 && (
-                <p style={{ margin: '0.2rem 0' }}>Deep sleep differs by {Math.abs(apple.deep_min - whoop.deep_min)}m — each device uses different algorithms to detect slow-wave sleep from wrist motion and HR.</p>
-              )}
-              {apple.rem_min != null && whoop.rem_min != null && Math.abs(apple.rem_min - whoop.rem_min) > 15 && (
-                <p style={{ margin: '0.2rem 0' }}>REM differs by {Math.abs(apple.rem_min - whoop.rem_min)}m — REM detection from wrist sensors is the least accurate sleep stage for both devices.</p>
-              )}
-              {apple.awake_min != null && whoop.awake_min != null && Math.abs(apple.awake_min - whoop.awake_min) > 10 && (
-                <p style={{ margin: '0.2rem 0' }}>Awake time differs by {Math.abs(apple.awake_min - whoop.awake_min)}m — WHOOP may detect brief awakenings that Apple classifies as light sleep.</p>
-              )}
-            </div>
-          )}
-          {sleepInsights.length > 0 && (
-            <div style={{ marginTop: '0.65rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.5rem' }}>
-              {sleepInsights.slice(0, 2).map((insight, i) => (
-                <p key={i} style={{ fontSize: '0.75rem', color: '#475569', margin: '0.25rem 0', lineHeight: 1.4 }}>
-                  <strong>{insight.title}</strong> — {insight.body}
-                </p>
-              ))}
-            </div>
           )}
         </div>
       )}
@@ -290,15 +268,15 @@ export default function DailyBriefing({ token }) {
             <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>HRV (ms)</span>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Apple uses SDNN · WHOOP uses RMSSD</span>
+                <span title="SDNN measures total variability across all heartbeats. RMSSD measures beat-to-beat changes and is more sensitive to recovery. Both are valid — trends matter more than absolute numbers." style={{ fontSize: '0.7rem', color: '#94a3b8', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>Apple SDNN · WHOOP RMSSD ⓘ</span>
               </div>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={hrvData} barGap={2}>
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 10', 'dataMax + 10']} />
                   <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="apple" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                  <Bar dataKey="apple" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -315,8 +293,8 @@ export default function DailyBriefing({ token }) {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
                   <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8' }} />
+                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -333,8 +311,8 @@ export default function DailyBriefing({ token }) {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} width={25} axisLine={false} tickLine={false} domain={[0, 'dataMax + 1']} />
                   <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} formatter={(v) => `${v}h`} />
-                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8', formatter: (v) => `${v}h` }} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} label={{ position: 'top', fontSize: 9, fill: '#94a3b8', formatter: (v) => `${v}h` }} />
+                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
+                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
