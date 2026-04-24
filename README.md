@@ -135,3 +135,23 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 - Schema `source` values are extensible (`apple_watch`, `whoop`, future `oura`, `garmin`).
 - New devices can be added as new ingestion modules writing to existing normalized tables.
 - Tables already include `user_id` for future multi-user expansion and Postgres migration.
+
+## Roadmap
+
+### V1 (current)
+- Apple Watch data (via iOS companion or file upload)
+- WHOOP data (via OAuth API or file upload)
+- Morning Check-In, Trends Dashboard, Device Comparison, Workout Log
+- Rolling baselines (HRV 90d, RHR 30d, sleep 90d)
+
+### V2 — Additional wearables & fertility tracking
+- Oura Ring (upload/ingest support)
+- Garmin (upload/ingest support)
+- Fitbit (upload/ingest support)
+- Natural Cycles (upload/ingest support)
+
+### V3 — Lifestyle & body composition
+- Smart scale integration (eufy Life — weight, body fat %, BMI, lean mass)
+- MyFitnessPal (nutrition — calories, macros, meal logging)
+- Other health lifestyle apps (Peloton, Strong, SleepWatch, etc.)
+- Body composition trends and correlation with recovery/performance
