@@ -48,21 +48,22 @@ export default function App() {
     }
   }
 
-  async function connectWhoop() {
-    try {
-      const response = await apiRequest('/whoop/connect', { token });
-      window.location.href = response.auth_url;
-    } catch (error) {
-      setSyncMessage(error.message);
-    }
-  }
-
   async function syncWhoop() {
     try {
+      setSyncMessage('Syncing WHOOP…');
       const response = await apiRequest('/whoop/sync', { method: 'POST', token, body: {} });
       setSyncMessage(`WHOOP sync complete: ${JSON.stringify(response.counts)}`);
     } catch (error) {
-      setSyncMessage(error.message);
+      if (error.message.includes('not connected')) {
+        try {
+          const response = await apiRequest('/whoop/connect', { token });
+          window.location.href = response.auth_url;
+        } catch (connError) {
+          setSyncMessage(connError.message);
+        }
+      } else {
+        setSyncMessage(error.message);
+      }
     }
   }
 
@@ -103,7 +104,6 @@ export default function App() {
       <header className="header-row">
         <h1>HealthStitch</h1>
         <div className="button-row">
-          <button onClick={connectWhoop}>Connect WHOOP</button>
           <button onClick={syncWhoop}>Sync WHOOP</button>
           {recoveryStatus?.active
             ? <button onClick={endRecoveryMode} style={{ background: '#fef3c7', borderColor: '#f59e0b' }}>End Recovery Mode</button>
