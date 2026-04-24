@@ -158,3 +158,5 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 
 ### Feature Backlog
 - **Recovery Mode / Injury Pause** — User-activated mode for injury, surgery, illness, or any out-of-normal-routine period. While active: data is still tracked but excluded from baseline calculations, recommendations shift to recovery-focused guidance (not "ready to train"), insights acknowledge the abnormal period instead of flagging metrics as concerning. This addresses a real gap — neither WHOOP nor Apple Watch handle this today.
+- **Apple Sign-In** (priority) — Core users have Apple Watches and Apple IDs. Required by App Store if any third-party sign-in is offered. Add as primary auth method.
+- **Google Sign-In** (secondary) — For Android/Garmin/Fitbit users without Apple devices. Add alongside Apple Sign-In.
