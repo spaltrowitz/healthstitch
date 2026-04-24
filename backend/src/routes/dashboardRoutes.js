@@ -35,6 +35,24 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
   const day = String(req.query.date || dateString(0));
   const yesterday = dateString(-1);
 
+  // Check recovery mode
+  const activeRecovery = db.prepare(`
+    SELECT id, reason, start_date, notes FROM recovery_periods
+    WHERE user_id = ? AND end_date IS NULL
+    ORDER BY start_date DESC LIMIT 1
+  `).get(userId);
+
+  let recoveryMode = null;
+  if (activeRecovery) {
+    const dayNum = Math.floor((Date.now() - new Date(activeRecovery.start_date).getTime()) / 86400000) + 1;
+    recoveryMode = {
+      active: true,
+      reason: activeRecovery.reason,
+      since: activeRecovery.start_date,
+      day_number: dayNum
+    };
+  }
+
   const whoopRecovery = db.prepare(`
     SELECT value FROM metric_records
     WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score' AND date(recorded_at) = ?
@@ -102,14 +120,21 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
   `).get(userId, yesterday);
 
   let recommendation = 'Moderate activity';
-  if ((whoopRecovery != null && whoopRecovery < 33) || (sleepDebtMs != null && sleepDebtMs > 3_600_000)) {
+  if (recoveryMode) {
+    if (recoveryMode.day_number <= 3) recommendation = 'Rest and recover. Your body is healing.';
+    else if (recoveryMode.day_number <= 7) recommendation = 'Gentle movement if comfortable. Don\'t push it.';
+    else recommendation = 'Listen to your body. Consider ending recovery mode when you feel ready.';
+  } else if ((whoopRecovery != null && whoopRecovery < 33) || (sleepDebtMs != null && sleepDebtMs > 3_600_000)) {
     recommendation = 'Prioritize rest';
   } else if (whoopRecovery != null && whoopRecovery > 66) {
     recommendation = 'Ready to train';
   }
 
+  const baselineSuppressed = !!recoveryMode;
+
   return res.json({
     date: day,
+    recovery_mode: recoveryMode,
     recovery: {
       score: whoopRecovery,
       zone: whoopRecovery == null ? null : whoopRecovery < 33 ? 'red' : whoopRecovery <= 66 ? 'yellow' : 'green'
@@ -118,13 +143,15 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
       value: todayHrv,
       source: todayWhoopHrv != null ? 'whoop' : todayAppleHrv != null ? 'apple_watch' : null,
       baseline_90d_apple: hrvBaseline,
-      delta_pct_vs_baseline: pctDelta(todayHrv, hrvBaseline)
+      delta_pct_vs_baseline: baselineSuppressed ? null : pctDelta(todayHrv, hrvBaseline),
+      suppressed: baselineSuppressed
     },
     resting_hr: {
       value: todayRhr,
       source: todayWhoopRhr != null ? 'whoop' : todayAppleRhr != null ? 'apple_watch' : null,
       baseline_30d_apple: rhrBaseline,
-      delta_pct_vs_baseline: pctDelta(todayRhr, rhrBaseline)
+      delta_pct_vs_baseline: baselineSuppressed ? null : pctDelta(todayRhr, rhrBaseline),
+      suppressed: baselineSuppressed
     },
     sleep: {
       actual_ms: whoopSleep?.total_duration_ms ?? null,
@@ -393,6 +420,23 @@ router.get('/workouts', requireAuth, (req, res) => {
 router.get('/insights', requireAuth, (req, res) => {
   const userId = req.user.userId;
   const insights = [];
+
+  // Check recovery mode
+  const activeRecovery = db.prepare(`
+    SELECT reason, start_date FROM recovery_periods
+    WHERE user_id = ? AND end_date IS NULL
+    ORDER BY start_date DESC LIMIT 1
+  `).get(userId);
+
+  if (activeRecovery) {
+    const dayNum = Math.floor((Date.now() - new Date(activeRecovery.start_date).getTime()) / 86400000) + 1;
+    insights.push({
+      type: 'info',
+      title: `🩺 Recovery Mode Active — Day ${dayNum}`,
+      body: `You've been in recovery mode since ${activeRecovery.start_date} (${activeRecovery.reason}). Baseline comparisons are paused and recovery-period data is excluded from baseline calculations.`,
+      detail: 'Your metrics are still being tracked. When you end recovery mode, baselines will resume updating without being skewed by this period.'
+    });
+  }
 
   // Determine overlap period
   const whoopRange = db.prepare(`

@@ -24,6 +24,9 @@ export default function MorningCheckIn({ token }) {
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Loading morning check-in...</p>;
 
+  const inRecovery = data.recovery_mode?.active;
+  const deltaStyle = inRecovery ? { color: '#94a3b8' } : {};
+
   return (
     <section>
       <h2>Morning Check-In</h2>
@@ -31,8 +34,8 @@ export default function MorningCheckIn({ token }) {
         <article className="card">
           <h3>Unified Readiness</h3>
           <p>WHOOP Recovery: <strong>{data.recovery.score ?? '--'}%</strong> ({data.recovery.zone || 'n/a'})</p>
-          <p>HRV vs Apple 90d baseline: <strong>{data.hrv.value ?? '--'}</strong> ({pct(data.hrv.delta_pct_vs_baseline)})</p>
-          <p>Resting HR vs Apple 30d baseline: <strong>{data.resting_hr.value ?? '--'}</strong> ({pct(data.resting_hr.delta_pct_vs_baseline)})</p>
+          <p>HRV vs Apple 90d baseline: <strong>{data.hrv.value ?? '--'}</strong> <span style={deltaStyle}>({data.hrv.suppressed ? 'paused' : pct(data.hrv.delta_pct_vs_baseline)})</span></p>
+          <p>Resting HR vs Apple 30d baseline: <strong>{data.resting_hr.value ?? '--'}</strong> <span style={deltaStyle}>({data.resting_hr.suppressed ? 'paused' : pct(data.resting_hr.delta_pct_vs_baseline)})</span></p>
         </article>
 
         <article className="card">
@@ -50,9 +53,14 @@ export default function MorningCheckIn({ token }) {
           <p>Duration: <strong>{hours(data.training_yesterday.apple_workout_duration_ms)}h</strong></p>
         </article>
 
-        <article className="card">
-          <h3>Recommendation</h3>
+        <article className="card" style={inRecovery ? { borderLeft: '4px solid #f59e0b' } : {}}>
+          <h3>{inRecovery ? '🩺 Recovery Guidance' : 'Recommendation'}</h3>
           <p className="recommendation">{data.recommendation}</p>
+          {inRecovery && (
+            <p style={{ fontSize: '0.85rem', color: '#92400e', marginTop: '0.5rem' }}>
+              Day {data.recovery_mode.day_number} of recovery ({data.recovery_mode.reason})
+            </p>
+          )}
         </article>
       </div>
     </section>

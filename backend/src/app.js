@@ -5,6 +5,7 @@ const whoopRoutes = require('./routes/whoopRoutes');
 const appleRoutes = require('./routes/appleRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const recoveryRoutes = require('./routes/recoveryRoutes');
 
 const app = express();
 app.use(cors());
@@ -20,5 +21,6 @@ app.use('/auth/whoop', whoopRoutes);
 app.use('/api/apple', appleRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/recovery', recoveryRoutes);
 
 module.exports = app;
