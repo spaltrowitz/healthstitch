@@ -29,8 +29,9 @@ function findColumn(headers, candidates) {
   const lower = headers.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
   for (const c of candidates) {
     const target = c.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const idx = lower.indexOf(target);
-    if (idx >= 0) return headers[idx];
+    for (let i = 0; i < lower.length; i++) {
+      if (lower[i] === target || lower[i].includes(target) || target.includes(lower[i])) return headers[i];
+    }
   }
   return null;
 }
@@ -48,20 +49,20 @@ function parseCyclesCsv(userId, content) {
   const metrics = [];
 
   for (const row of records) {
-    const recordedAt = toIso(col(row, headers, ['start', 'cycle_start', 'created_at', 'date']));
+    const recordedAt = toIso(col(row, headers, ['cyclestarttime', 'start', 'cyclestart', 'createdat', 'date']));
     if (!recordedAt) continue;
 
     const mappings = [
-      { type: 'recovery_score', value: num(col(row, headers, ['recovery_score', 'recovery'])), unit: 'percent' },
-      { type: 'hrv_rmssd', value: num(col(row, headers, ['hrv_rmssd', 'hrv', 'hrv_rmssd_milli'])), unit: 'ms' },
-      { type: 'resting_hr', value: num(col(row, headers, ['resting_heart_rate', 'resting_hr', 'rhr'])), unit: 'bpm' },
-      { type: 'daily_strain', value: num(col(row, headers, ['strain', 'day_strain', 'daily_strain'])), unit: 'score' },
-      { type: 'energy_kj', value: num(col(row, headers, ['kilojoules', 'energy_burned', 'kilojoule'])), unit: 'kj' },
-      { type: 'max_hr', value: num(col(row, headers, ['max_heart_rate', 'max_hr'])), unit: 'bpm' },
-      { type: 'avg_hr', value: num(col(row, headers, ['average_heart_rate', 'avg_hr', 'avg_heart_rate'])), unit: 'bpm' },
-      { type: 'spo2', value: num(col(row, headers, ['spo2', 'spo2_percentage', 'blood_oxygen'])), unit: 'percent' },
-      { type: 'skin_temp_deviation', value: num(col(row, headers, ['skin_temp', 'skin_temp_celsius', 'skin_temperature'])), unit: 'celsius' },
-      { type: 'respiratory_rate', value: num(col(row, headers, ['respiratory_rate', 'resp_rate'])), unit: 'breaths_per_min' }
+      { type: 'recovery_score', value: num(col(row, headers, ['recoveryscore', 'recovery'])), unit: 'percent' },
+      { type: 'hrv_rmssd', value: num(col(row, headers, ['heartratevariabilityms', 'heartratevariability', 'hrvrmssd', 'hrv'])), unit: 'ms' },
+      { type: 'resting_hr', value: num(col(row, headers, ['restingheartratebpm', 'restingheartrate', 'restinghr', 'rhr'])), unit: 'bpm' },
+      { type: 'daily_strain', value: num(col(row, headers, ['daystrain', 'strain', 'dailystrain'])), unit: 'score' },
+      { type: 'energy_kj', value: num(col(row, headers, ['energyburnedcal', 'kilojoules', 'energyburned'])), unit: 'cal' },
+      { type: 'max_hr', value: num(col(row, headers, ['maxhrbpm', 'maxheartrate', 'maxhr'])), unit: 'bpm' },
+      { type: 'avg_hr', value: num(col(row, headers, ['averagehrbpm', 'averageheartrate', 'avghr', 'avgheartrate'])), unit: 'bpm' },
+      { type: 'spo2', value: num(col(row, headers, ['bloodoxygen', 'spo2', 'spo2percentage'])), unit: 'percent' },
+      { type: 'skin_temp_deviation', value: num(col(row, headers, ['skintempcelsius', 'skintemp', 'skintemperature'])), unit: 'celsius' },
+      { type: 'respiratory_rate', value: num(col(row, headers, ['respiratoryraterpm', 'respiratoryrate', 'resprate'])), unit: 'breaths_per_min' }
     ];
 
     for (const m of mappings) {
@@ -89,11 +90,13 @@ function parseSleepsCsv(userId, content) {
   const sleeps = [];
 
   for (const row of records) {
-    const startAt = toIso(col(row, headers, ['start', 'sleep_onset', 'sleep_start']));
-    const endAt = toIso(col(row, headers, ['end', 'wake_time', 'sleep_end']));
+    const startAt = toIso(col(row, headers, ['sleeponset', 'start', 'sleepstart']));
+    const endAt = toIso(col(row, headers, ['wakeonset', 'end', 'waketime', 'sleepend']));
     if (!startAt || !endAt) continue;
 
-    const totalMs = msFromHours(col(row, headers, ['total_sleep_time', 'total_sleep', 'total_in_bed_time']))
+    const isNap = (col(row, headers, ['nap']) || '').toLowerCase() === 'true';
+
+    const totalMs = msFromMinutes(col(row, headers, ['asleepdurationmin', 'asleepduration', 'totalsleeptime', 'totalsleep']))
       || (new Date(endAt).getTime() - new Date(startAt).getTime());
 
     sleeps.push({
@@ -101,15 +104,17 @@ function parseSleepsCsv(userId, content) {
       start_at: startAt,
       end_at: endAt,
       total_duration_ms: totalMs,
-      slow_wave_ms: msFromMinutes(col(row, headers, ['time_in_deep_sleep', 'slow_wave_sleep', 'deep_sleep'])),
-      rem_ms: msFromMinutes(col(row, headers, ['time_in_rem_sleep', 'rem_sleep', 'rem'])),
-      light_ms: msFromMinutes(col(row, headers, ['time_in_light_sleep', 'light_sleep', 'light'])),
-      awake_ms: msFromMinutes(col(row, headers, ['time_awake', 'awake_time', 'awake'])),
-      sleep_performance: num(col(row, headers, ['sleep_performance', 'performance'])),
-      sleep_need_ms: msFromHours(col(row, headers, ['sleep_need', 'sleep_debt'])),
-      sleep_efficiency: num(col(row, headers, ['sleep_efficiency', 'efficiency'])),
-      respiratory_rate: num(col(row, headers, ['respiratory_rate', 'resp_rate'])),
-      external_id: `whoop_csv:sleep:${startAt}`
+      slow_wave_ms: msFromMinutes(col(row, headers, ['deepswsdurationmin', 'deepswsduration', 'timeindeeepsleep', 'slowwavesleep', 'deepsleep'])),
+      rem_ms: msFromMinutes(col(row, headers, ['remdurationmin', 'remduration', 'timeinremsleep', 'remsleep', 'rem'])),
+      light_ms: msFromMinutes(col(row, headers, ['lightsleepdurationmin', 'lightsleepduration', 'timeinlightsleep', 'lightsleep', 'light'])),
+      awake_ms: msFromMinutes(col(row, headers, ['awakedurationmin', 'awakeduration', 'timeawake', 'awaketime', 'awake'])),
+      sleep_performance: num(col(row, headers, ['sleepperformance', 'performance'])),
+      sleep_need_ms: msFromMinutes(col(row, headers, ['sleepneedmin', 'sleepneed'])),
+      sleep_efficiency: num(col(row, headers, ['sleepefficiency', 'efficiency'])),
+      sleep_consistency: num(col(row, headers, ['sleepconsistency', 'consistency'])),
+      respiratory_rate: num(col(row, headers, ['respiratoryraterpm', 'respiratoryrate', 'resprate'])),
+      external_id: `whoop_csv:sleep:${startAt}`,
+      metadata: isNap ? { nap: true } : null
     });
   }
 
@@ -125,26 +130,26 @@ function parseWorkoutsCsv(userId, content) {
   const workouts = [];
 
   for (const row of records) {
-    const startAt = toIso(col(row, headers, ['start', 'workout_start', 'start_time']));
-    const endAt = toIso(col(row, headers, ['end', 'workout_end', 'end_time']));
+    const startAt = toIso(col(row, headers, ['workoutstarttime', 'start', 'workoutstart', 'starttime']));
+    const endAt = toIso(col(row, headers, ['workoutendtime', 'end', 'workoutend', 'endtime']));
     if (!startAt || !endAt) continue;
 
-    const durationMs = msFromMinutes(col(row, headers, ['duration', 'workout_duration']))
+    const durationMs = msFromMinutes(col(row, headers, ['durationmin', 'duration', 'workoutduration']))
       || (new Date(endAt).getTime() - new Date(startAt).getTime());
 
-    const energyKj = num(col(row, headers, ['energy_burned', 'kilojoules', 'kilojoule']));
+    const energyCal = num(col(row, headers, ['energyburnedcal', 'energyburned', 'calories', 'energykcal']));
 
     workouts.push({
-      sport_type: col(row, headers, ['activity_name', 'sport_name', 'sport_type', 'activity']) || 'Workout',
+      sport_type: col(row, headers, ['activityname', 'sportname', 'sporttype', 'activity']) || 'Workout',
       start_at: startAt,
       end_at: endAt,
       duration_ms: durationMs,
-      avg_hr: num(col(row, headers, ['average_heart_rate', 'avg_hr', 'avg_heart_rate'])),
-      max_hr: num(col(row, headers, ['max_heart_rate', 'max_hr'])),
-      strain: num(col(row, headers, ['strain', 'workout_strain'])),
-      energy_kj: energyKj,
-      energy_kcal: energyKj != null ? energyKj * 0.239006 : num(col(row, headers, ['calories', 'energy_kcal'])),
-      distance_m: num(col(row, headers, ['distance', 'distance_m', 'distance_meters'])),
+      avg_hr: num(col(row, headers, ['averagehrbpm', 'averageheartrate', 'avghr', 'avgheartrate'])),
+      max_hr: num(col(row, headers, ['maxhrbpm', 'maxheartrate', 'maxhr'])),
+      strain: num(col(row, headers, ['activitystrain', 'strain', 'workoutstrain'])),
+      energy_kcal: energyCal,
+      energy_kj: energyCal != null ? energyCal / 0.239006 : null,
+      distance_m: num(col(row, headers, ['distance', 'distancem', 'distancemeters'])),
       external_id: `whoop_csv:workout:${startAt}`
     });
   }
@@ -215,10 +220,10 @@ async function parseWhoopExport(userId, filePath) {
     const content = fs.readFileSync(filePath, 'utf-8');
     const firstLine = content.split('\n')[0].toLowerCase();
 
-    if (firstLine.includes('recovery') || firstLine.includes('strain') || firstLine.includes('cycle')) {
+    if (firstLine.includes('recovery') || firstLine.includes('strain') || firstLine.includes('cycle') || firstLine.includes('day strain')) {
       const result = parseCyclesCsv(userId, content);
       counts.metrics += result.metrics;
-    } else if (firstLine.includes('sleep')) {
+    } else if (firstLine.includes('sleep') || firstLine.includes('nap')) {
       const result = parseSleepsCsv(userId, content);
       counts.sleeps += result.sleeps;
     } else if (firstLine.includes('workout') || firstLine.includes('activity')) {
