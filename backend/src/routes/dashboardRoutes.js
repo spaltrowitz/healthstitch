@@ -910,7 +910,7 @@ router.get('/insights', requireAuth, (req, res) => {
     const parts = workoutImpact.map(w => `${w.intensity} strain (${w.workouts}x): ${w.avg_next_recovery}% next-day recovery`);
     insights.push({
       type: 'pattern',
-      title: '🏋️ Workout Impact on Recovery',
+      title: 'Workout Impact on Recovery',
       body: parts.join('. ') + '.',
       detail: 'Shows how workout intensity affects your next-day recovery. Higher strain should ideally be followed by adequate sleep to maintain recovery.'
     });
@@ -934,7 +934,7 @@ router.get('/insights', requireAuth, (req, res) => {
     const remStatus = sleepQuality.avg_rem_pct < 20 ? 'below the recommended 20-25%' : 'within the healthy 20-25% range';
     insights.push({
       type: 'pattern',
-      title: '😴 Sleep Quality Breakdown',
+      title: 'Sleep Quality Breakdown',
       body: `Over ${sleepQuality.nights} nights: ${sleepQuality.avg_total_hours}h avg total. Deep sleep: ${sleepQuality.avg_deep_pct}% (${deepStatus}). REM: ${sleepQuality.avg_rem_pct}% (${remStatus}). Light: ${sleepQuality.avg_light_pct}%.`,
       detail: 'Deep sleep is critical for physical recovery and immune function. REM supports memory consolidation and emotional regulation. Getting enough hours but low deep/REM percentages suggests sleep quality issues.'
     });
@@ -960,7 +960,7 @@ router.get('/insights', requireAuth, (req, res) => {
       const direction = weekend.avg_hours > weekday.avg_hours ? 'more' : 'less';
       insights.push({
         type: 'pattern',
-        title: '📅 Weekend vs Weekday Sleep',
+        title: 'Weekend vs Weekday Sleep',
         body: `Weekdays: ${weekday.avg_hours}h avg (${weekday.nights} nights). Weekends: ${weekend.avg_hours}h avg (${weekend.nights} nights). You sleep ${(diff * 60).toFixed(0)} minutes ${direction} on weekends.`,
         detail: diff > 1 ? 'A difference of more than 1 hour suggests social jet lag — your body\'s clock shifts on weekends. This can reduce sleep quality even when total hours increase.' : 'Good consistency between weekdays and weekends. This supports a stable circadian rhythm.'
       });
@@ -994,7 +994,7 @@ router.get('/insights', requireAuth, (req, res) => {
     const parts = sleepRecoveryCorr.map(b => `${b.bucket}: ${b.avg_recovery}% recovery (${b.nights} nights)`);
     insights.push({
       type: 'pattern',
-      title: '🎯 Your Optimal Sleep Duration',
+      title: 'Your Optimal Sleep Duration',
       body: `Your best recovery (${best.avg_recovery}%) happens in the ${best.bucket} range. ${parts.join('. ')}.`,
       detail: 'More sleep isn\'t always better — oversleeping can indicate poor sleep quality or excessive sleep need from high strain. Find your sweet spot.'
     });
@@ -1019,7 +1019,7 @@ router.get('/insights', requireAuth, (req, res) => {
     if (lowDays > 0) {
       insights.push({
         type: 'comparison',
-        title: '🫁 Blood Oxygen Impact',
+        title: 'Blood Oxygen Impact',
         body: `SpO2 was below 90% on ${lowDays} of the last 7 days (avg ${recentAvg.toFixed(1)}%).${priorAvg ? ` Previous 7 days averaged ${priorAvg.toFixed(1)}%.` : ''}`,
         detail: 'Low SpO2 significantly depresses WHOOP recovery scores. If medication-related, your actual recovery state may be better than WHOOP reports. Consider this when interpreting your recovery scores.',
         data: { recent_avg: Math.round(recentAvg * 10) / 10, prior_avg: priorAvg ? Math.round(priorAvg * 10) / 10 : null, low_days: lowDays }
