@@ -193,12 +193,12 @@ export default function DailyBriefing({ token }) {
             label="Sleep Score" sublabel="WHOOP"
           />
           <GaugeRing
-            value={checkin.hrv?.value} max={120} size={100}
+            value={checkin.hrv?.value} max={120}
             color="#8b5cf6"
             label="HRV" sublabel={checkin.hrv?.source === 'whoop' ? 'RMSSD' : 'SDNN'}
           />
           <GaugeRing
-            value={checkin.resting_hr?.value} max={100} size={100}
+            value={checkin.resting_hr?.value} max={100}
             color="#ef4444"
             label="Resting HR" sublabel="bpm"
           />
