@@ -70,14 +70,20 @@ function FactorRow({ factor }) {
 
 export default function ScoreExplainer({ token }) {
   const [data, setData] = useState(null);
+  const [checkin, setCheckin] = useState(null);
   const [error, setError] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     setData(null);
-    apiRequest(`/dashboard/score-explainer?date=${date}`, { token })
-      .then(setData)
-      .catch((err) => setError(err.message));
+    setCheckin(null);
+    Promise.all([
+      apiRequest(`/dashboard/score-explainer?date=${date}`, { token }),
+      apiRequest(`/dashboard/morning-checkin?date=${date}`, { token })
+    ]).then(([scoreData, checkinData]) => {
+      setData(scoreData);
+      setCheckin(checkinData);
+    }).catch((err) => setError(err.message));
   }, [token, date]);
 
   if (error) return <p className="error">{error}</p>;
@@ -103,6 +109,56 @@ export default function ScoreExplainer({ token }) {
       <div className="card" style={{ background: '#f8fafc', borderLeft: '4px solid #2563eb', marginBottom: '1rem' }}>
         <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.6 }}>{data.summary}</p>
       </div>
+
+      {/* Recommendation + Quick Stats */}
+      {checkin && (
+        <div className="grid two-col" style={{ marginBottom: '1rem' }}>
+          <div className="card" style={
+            checkin.recovery_mode?.active
+              ? { borderLeft: '4px solid #f59e0b', background: '#fffbeb' }
+              : checkin.recovery?.zone === 'green' ? { borderLeft: '4px solid #22c55e', background: '#f0fdf4' }
+              : checkin.recovery?.zone === 'red' ? { borderLeft: '4px solid #ef4444', background: '#fef2f2' }
+              : { borderLeft: '4px solid #f59e0b', background: '#fefce8' }
+          }>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>
+              {checkin.recovery_mode?.active ? '🩺 Recovery Guidance' : '💪 Today\'s Readiness'}
+            </h3>
+            <p className="recommendation" style={{ margin: '0 0 0.5rem' }}>{checkin.recommendation}</p>
+            {checkin.recovery_mode?.active && (
+              <p style={{ fontSize: '0.8rem', color: '#92400e', margin: 0 }}>
+                Day {checkin.recovery_mode.day_number} of recovery ({checkin.recovery_mode.reason})
+              </p>
+            )}
+          </div>
+
+          <div className="card">
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>⚡ Quick Stats</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <div>
+                <span style={{ color: '#64748b' }}>Sleep</span><br />
+                <strong>{checkin.sleep?.actual_ms ? (checkin.sleep.actual_ms / 3600000).toFixed(1) + 'h' : '--'}</strong>
+                {checkin.sleep?.whoop_sleep_need_ms && (
+                  <span style={{ color: '#64748b', fontSize: '0.75rem' }}> / {(checkin.sleep.whoop_sleep_need_ms / 3600000).toFixed(1)}h need</span>
+                )}
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>HRV</span><br />
+                <strong>{checkin.hrv?.value ?? '--'}</strong>
+                <span style={{ color: '#64748b', fontSize: '0.75rem' }}> {checkin.hrv?.source === 'whoop' ? 'RMSSD' : 'SDNN'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Resting HR</span><br />
+                <strong>{checkin.resting_hr?.value ?? '--'} bpm</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Yesterday Strain</span><br />
+                <strong>{checkin.training_yesterday?.whoop_strain ?? '--'}</strong>
+                <span style={{ color: '#64748b', fontSize: '0.75rem' }}> / 21</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid two-col">
         {/* Recovery & Sleep Scores */}
