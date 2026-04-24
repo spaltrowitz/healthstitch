@@ -6,15 +6,17 @@ import DeviceComparison from './views/DeviceComparison';
 import WorkoutLog from './views/WorkoutLog';
 import DataUpload from './views/DataUpload';
 import DataInsights from './views/DataInsights';
+import ScoreExplainer from './views/ScoreExplainer';
 import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
+  { id: 'scores', label: 'Score Explainer' },
   { id: 'morning', label: 'Morning Check-In' },
-  { id: 'trends', label: 'Trends Dashboard' },
-  { id: 'comparison', label: 'Device Comparison' },
-  { id: 'workouts', label: 'Workout Log' },
+  { id: 'trends', label: 'Trends' },
+  { id: 'comparison', label: 'Comparison' },
+  { id: 'workouts', label: 'Workouts' },
   { id: 'insights', label: 'Insights' },
-  { id: 'upload', label: 'Upload Data' }
+  { id: 'upload', label: 'Upload' }
 ];
 
 export default function App() {
@@ -22,7 +24,7 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState('morning');
+  const [activeTab, setActiveTab] = useState('scores');
   const [syncMessage, setSyncMessage] = useState('');
   const [recoveryStatus, setRecoveryStatus] = useState(null);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -136,6 +138,7 @@ export default function App() {
         ))}
       </nav>
 
+      {activeTab === 'scores' && <ScoreExplainer token={token} />}
       {activeTab === 'morning' && <MorningCheckIn token={token} />}
       {activeTab === 'trends' && <TrendsDashboard token={token} />}
       {activeTab === 'comparison' && <DeviceComparison token={token} />}

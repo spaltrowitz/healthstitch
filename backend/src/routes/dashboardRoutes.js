@@ -169,6 +169,194 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
   });
 });
 
+router.get('/score-explainer', requireAuth, (req, res) => {
+  const userId = req.user.userId;
+  const day = String(req.query.date || dateString(0));
+  const yesterday = dateString(-1);
+
+  // Get sleep from both sources
+  const appleSleep = db.prepare(`
+    SELECT total_duration_ms, slow_wave_ms, rem_ms, light_ms, awake_ms
+    FROM sleep_records WHERE user_id = ? AND source = 'apple_watch' AND sleep_date = ?
+    ORDER BY end_at DESC LIMIT 1
+  `).get(userId, day);
+
+  const whoopSleep = db.prepare(`
+    SELECT total_duration_ms, slow_wave_ms, rem_ms, light_ms, awake_ms,
+      sleep_performance, sleep_need_ms, sleep_efficiency, sleep_consistency, respiratory_rate
+    FROM sleep_records WHERE user_id = ? AND source = 'whoop' AND sleep_date = ?
+      AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
+    ORDER BY end_at DESC LIMIT 1
+  `).get(userId, day);
+
+  // Get vitals from both sources
+  function getMetric(source, metricType) {
+    return db.prepare(`
+      SELECT value FROM metric_records
+      WHERE user_id = ? AND source = ? AND metric_type = ? AND date(recorded_at) = ?
+      ORDER BY recorded_at DESC LIMIT 1
+    `).get(userId, source, metricType, day)?.value ?? null;
+  }
+
+  // Get 7-day averages for context
+  function getAvg7d(source, metricType) {
+    return db.prepare(`
+      SELECT ROUND(AVG(value), 2) as avg FROM metric_records
+      WHERE user_id = ? AND source = ? AND metric_type = ?
+        AND date(recorded_at) BETWEEN date(?, '-6 days') AND ?
+    `).get(userId, source, metricType, day, day)?.avg ?? null;
+  }
+
+  const recoveryScore = getMetric('whoop', 'recovery_score');
+  const whoopHrv = getMetric('whoop', 'hrv_rmssd');
+  const appleHrv = getMetric('apple_watch', 'hrv_sdnn');
+  const whoopRhr = getMetric('whoop', 'resting_hr');
+  const appleRhr = getMetric('apple_watch', 'resting_hr');
+  const whoopSpo2 = getMetric('whoop', 'spo2');
+  const whoopRespRate = getMetric('whoop', 'respiratory_rate');
+  const appleRespRate = getMetric('apple_watch', 'respiratory_rate');
+  const whoopSkinTemp = getMetric('whoop', 'skin_temp_deviation');
+  const prevStrain = getMetric('whoop', 'daily_strain');
+
+  const avgSpo2_7d = getAvg7d('whoop', 'spo2');
+  const avgHrv_7d = getAvg7d('whoop', 'hrv_rmssd');
+  const avgRhr_7d = getAvg7d('whoop', 'resting_hr');
+  const hrvBaseline = getBaseline(userId, 'hrv_sdnn', 90, day)?.value ?? null;
+  const rhrBaseline = getBaseline(userId, 'resting_hr', 30, day)?.value ?? null;
+
+  // Build sleep comparison
+  const sleepComparison = {};
+  if (appleSleep) {
+    sleepComparison.apple_watch = {
+      total_hours: +(appleSleep.total_duration_ms / 3600000).toFixed(2),
+      deep_min: appleSleep.slow_wave_ms ? Math.round(appleSleep.slow_wave_ms / 60000) : null,
+      rem_min: appleSleep.rem_ms ? Math.round(appleSleep.rem_ms / 60000) : null,
+      light_min: appleSleep.light_ms ? Math.round(appleSleep.light_ms / 60000) : null,
+      awake_min: appleSleep.awake_ms ? Math.round(appleSleep.awake_ms / 60000) : null
+    };
+  }
+  if (whoopSleep) {
+    sleepComparison.whoop = {
+      total_hours: +(whoopSleep.total_duration_ms / 3600000).toFixed(2),
+      deep_min: whoopSleep.slow_wave_ms ? Math.round(whoopSleep.slow_wave_ms / 60000) : null,
+      rem_min: whoopSleep.rem_ms ? Math.round(whoopSleep.rem_ms / 60000) : null,
+      light_min: whoopSleep.light_ms ? Math.round(whoopSleep.light_ms / 60000) : null,
+      awake_min: whoopSleep.awake_ms ? Math.round(whoopSleep.awake_ms / 60000) : null,
+      performance: whoopSleep.sleep_performance,
+      efficiency: whoopSleep.sleep_efficiency,
+      need_hours: whoopSleep.sleep_need_ms ? +(whoopSleep.sleep_need_ms / 3600000).toFixed(2) : null
+    };
+  }
+
+  // Build factors analysis
+  const factors = [];
+
+  // SpO2
+  if (whoopSpo2 != null) {
+    const isLow = whoopSpo2 < 90;
+    const isBelowAvg = avgSpo2_7d != null && whoopSpo2 < avgSpo2_7d - 3;
+    factors.push({
+      metric: 'Blood Oxygen (SpO2)',
+      apple_value: null,
+      whoop_value: `${whoopSpo2.toFixed(1)}%`,
+      avg_7d: avgSpo2_7d ? `${avgSpo2_7d.toFixed(1)}%` : null,
+      status: isLow ? 'low' : 'normal',
+      impact: isLow ? 'high' : 'low',
+      explanation: isLow
+        ? 'SpO2 below 90% significantly impacts WHOOP recovery score. If this is medication-related, it may not reflect actual recovery status.'
+        : 'SpO2 is within normal range.'
+    });
+  }
+
+  // HRV
+  if (whoopHrv != null || appleHrv != null) {
+    const hrvStatus = avgHrv_7d && whoopHrv ? (whoopHrv < avgHrv_7d * 0.85 ? 'below_avg' : whoopHrv > avgHrv_7d * 1.15 ? 'above_avg' : 'normal') : 'normal';
+    factors.push({
+      metric: 'Heart Rate Variability',
+      apple_value: appleHrv ? `${appleHrv.toFixed(1)} ms (SDNN)` : null,
+      whoop_value: whoopHrv ? `${whoopHrv.toFixed(1)} ms (RMSSD)` : null,
+      avg_7d: avgHrv_7d ? `${avgHrv_7d.toFixed(1)} ms` : null,
+      baseline_90d: hrvBaseline ? `${hrvBaseline.toFixed(1)} ms` : null,
+      status: hrvStatus,
+      impact: hrvStatus === 'below_avg' ? 'high' : 'medium',
+      explanation: 'Apple uses SDNN (overall variability), WHOOP uses RMSSD (parasympathetic activity). RMSSD is more sensitive to recovery state. Both trending the same direction is a good sign.'
+    });
+  }
+
+  // Resting HR
+  if (whoopRhr != null || appleRhr != null) {
+    const rhrDiff = (whoopRhr && appleRhr) ? Math.abs(whoopRhr - appleRhr) : 0;
+    factors.push({
+      metric: 'Resting Heart Rate',
+      apple_value: appleRhr ? `${appleRhr} bpm` : null,
+      whoop_value: whoopRhr ? `${whoopRhr} bpm` : null,
+      avg_7d: avgRhr_7d ? `${avgRhr_7d.toFixed(1)} bpm` : null,
+      baseline_30d: rhrBaseline ? `${rhrBaseline.toFixed(1)} bpm` : null,
+      status: 'normal',
+      impact: 'medium',
+      explanation: rhrDiff > 3
+        ? `${rhrDiff} bpm difference between devices. WHOOP measures during deepest sleep; Apple Watch samples throughout the night.`
+        : 'Both devices are closely aligned.'
+    });
+  }
+
+  // Respiratory Rate
+  if (whoopRespRate != null || appleRespRate != null) {
+    factors.push({
+      metric: 'Respiratory Rate',
+      apple_value: appleRespRate ? `${appleRespRate.toFixed(1)} rpm` : null,
+      whoop_value: whoopRespRate ? `${whoopRespRate.toFixed(1)} rpm` : null,
+      status: 'normal',
+      impact: 'low',
+      explanation: 'Both devices measure breathing rate during sleep. Minor differences are normal due to different measurement windows.'
+    });
+  }
+
+  // Previous day strain
+  if (prevStrain != null) {
+    factors.push({
+      metric: 'Previous Day Strain',
+      apple_value: null,
+      whoop_value: `${prevStrain.toFixed(1)}`,
+      status: prevStrain > 14 ? 'high' : prevStrain > 10 ? 'moderate' : 'normal',
+      impact: prevStrain > 14 ? 'high' : 'medium',
+      explanation: prevStrain > 14
+        ? 'High strain yesterday increases sleep need and may lower recovery.'
+        : 'Moderate to low strain — not a major factor in today\'s recovery.'
+    });
+  }
+
+  // Build score breakdown
+  const scores = {
+    whoop_recovery: recoveryScore != null ? {
+      score: recoveryScore,
+      zone: recoveryScore < 33 ? 'red' : recoveryScore <= 66 ? 'yellow' : 'green',
+      components: 'WHOOP recovery is calculated from HRV, RHR, SpO2, skin temperature, and respiratory rate measured during slow-wave sleep.',
+      primary_driver: whoopSpo2 != null && whoopSpo2 < 90 ? 'Low SpO2 is likely the primary factor dragging recovery down.' :
+        whoopHrv != null && avgHrv_7d && whoopHrv < avgHrv_7d * 0.85 ? 'Below-average HRV suggests incomplete recovery.' :
+        'All vitals appear within normal ranges.'
+    } : null,
+    whoop_sleep: whoopSleep ? {
+      score: whoopSleep.sleep_performance,
+      components: 'WHOOP sleep score = actual sleep time ÷ sleep need. Factors in deep, REM, and light sleep quality.',
+      primary_driver: whoopSleep.sleep_performance < 70 ? 'You didn\'t meet your sleep need.' :
+        'Sleep duration met most of your sleep need.'
+    } : null
+  };
+
+  return res.json({
+    date: day,
+    sleep: sleepComparison,
+    scores,
+    factors,
+    summary: whoopSpo2 != null && whoopSpo2 < 90
+      ? `Your WHOOP recovery (${recoveryScore || '--'}%) is likely depressed by low blood oxygen (${whoopSpo2.toFixed(1)}%). If this is medication-related, your actual recovery may be better than the score suggests.`
+      : recoveryScore != null && recoveryScore < 50
+        ? `Low recovery (${recoveryScore}%) — check HRV and sleep quality factors below.`
+        : `Recovery looks ${recoveryScore > 66 ? 'good' : 'moderate'}. See factor breakdown below.`
+  });
+});
+
 router.get('/trends', requireAuth, (req, res) => {
   const userId = req.user.userId;
   const range = String(req.query.range || '30').toLowerCase();
