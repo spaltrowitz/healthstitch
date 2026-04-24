@@ -4,12 +4,17 @@ import MorningCheckIn from './views/MorningCheckIn';
 import TrendsDashboard from './views/TrendsDashboard';
 import DeviceComparison from './views/DeviceComparison';
 import WorkoutLog from './views/WorkoutLog';
+import DataUpload from './views/DataUpload';
+import DataInsights from './views/DataInsights';
+import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
   { id: 'morning', label: 'Morning Check-In' },
   { id: 'trends', label: 'Trends Dashboard' },
   { id: 'comparison', label: 'Device Comparison' },
-  { id: 'workouts', label: 'Workout Log' }
+  { id: 'workouts', label: 'Workout Log' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'upload', label: 'Upload Data' }
 ];
 
 export default function App() {
@@ -19,10 +24,15 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState('morning');
   const [syncMessage, setSyncMessage] = useState('');
+  const [recoveryStatus, setRecoveryStatus] = useState(null);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     localStorage.setItem('health_token', token);
+    apiRequest('/recovery/status', { token })
+      .then(setRecoveryStatus)
+      .catch(() => {});
   }, [token]);
 
   async function login(mode) {
@@ -56,8 +66,19 @@ export default function App() {
     }
   }
 
+  async function endRecoveryMode() {
+    try {
+      await apiRequest('/recovery/end', { method: 'POST', token, body: {} });
+      const status = await apiRequest('/recovery/status', { token });
+      setRecoveryStatus(status);
+    } catch (error) {
+      setSyncMessage(error.message);
+    }
+  }
+
   function logout() {
     setToken('');
+    setRecoveryStatus(null);
     localStorage.removeItem('health_token');
   }
 
@@ -84,9 +105,23 @@ export default function App() {
         <div className="button-row">
           <button onClick={connectWhoop}>Connect WHOOP</button>
           <button onClick={syncWhoop}>Sync WHOOP</button>
+          {recoveryStatus?.active
+            ? <button onClick={endRecoveryMode} style={{ background: '#fef3c7', borderColor: '#f59e0b' }}>End Recovery Mode</button>
+            : <button onClick={() => setShowRecoveryModal(true)}>🩺 Recovery Mode</button>
+          }
           <button onClick={logout}>Logout</button>
         </div>
       </header>
+
+      {recoveryStatus?.active && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 8, padding: '0.75rem 1rem', margin: '0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>🩺</span>
+          <span>
+            <strong>Recovery Mode</strong> — {recoveryStatus.active.reason} (Day {recoveryStatus.active.day_number}, since {recoveryStatus.active.start_date}).
+            Baseline comparisons paused.
+          </span>
+        </div>
+      )}
 
       {syncMessage && <p>{syncMessage}</p>}
 
@@ -106,6 +141,19 @@ export default function App() {
       {activeTab === 'trends' && <TrendsDashboard token={token} />}
       {activeTab === 'comparison' && <DeviceComparison token={token} />}
       {activeTab === 'workouts' && <WorkoutLog token={token} />}
+      {activeTab === 'insights' && <DataInsights token={token} />}
+      {activeTab === 'upload' && <DataUpload token={token} />}
+
+      {showRecoveryModal && (
+        <RecoveryModeModal
+          token={token}
+          onClose={() => setShowRecoveryModal(false)}
+          onStarted={(recovery) => {
+            setRecoveryStatus({ active: recovery });
+            setShowRecoveryModal(false);
+          }}
+        />
+      )}
     </main>
   );
 }
