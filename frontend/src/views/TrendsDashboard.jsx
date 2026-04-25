@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
+  AreaChart,
   LineChart,
   Line,
   XAxis,
   YAxis,
   Tooltip,
-  CartesianGrid,
   BarChart,
   Bar,
   Legend,
   ComposedChart,
-  Area
+  Area,
+  CartesianGrid,
+  ReferenceLine
 } from 'recharts';
 import { apiRequest } from '../api/client';
 import DateRangeSelector from '../components/DateRangeSelector';
@@ -127,48 +129,65 @@ export default function TrendsDashboard({ token }) {
       <div className="chart-card">
         <h3>Heart Rate Variability</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.hrv}</p>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={hrvData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-            <Line type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" dot={false} strokeWidth={2} name="Apple SDNN" />
-            <Line type="monotone" dataKey="whoop_hrv_rmssd" stroke="#16a34a" dot={false} strokeWidth={2} name="WHOOP RMSSD" />
-          </LineChart>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={hrvData}>
+            <defs>
+              <linearGradient id="appleHrv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="whoopHrv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
+                <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
+            <Area type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" fill="url(#appleHrv)" strokeWidth={2.5} dot={false} name="Apple SDNN" />
+            <Area type="monotone" dataKey="whoop_hrv_rmssd" stroke="#16a34a" fill="url(#whoopHrv)" strokeWidth={2.5} dot={false} name="WHOOP RMSSD" />
+          </AreaChart>
         </ResponsiveContainer>
       </div>
 
       <div className="chart-card">
         <h3>Resting Heart Rate</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.rhr}</p>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={restingData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-            <Line type="monotone" dataKey="apple_watch_resting_hr" stroke="#2563eb" dot={false} strokeWidth={2} name="Apple Watch" />
-            <Line type="monotone" dataKey="whoop_resting_hr" stroke="#16a34a" dot={false} strokeWidth={2} name="WHOOP" />
-          </LineChart>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={restingData}>
+            <defs>
+              <linearGradient id="appleRhr" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.12} />
+                <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="whoopRhr" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#16a34a" stopOpacity={0.12} />
+                <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
+            <Area type="monotone" dataKey="apple_watch_resting_hr" stroke="#2563eb" fill="url(#appleRhr)" strokeWidth={2.5} dot={false} name="Apple Watch" />
+            <Area type="monotone" dataKey="whoop_resting_hr" stroke="#16a34a" fill="url(#whoopRhr)" strokeWidth={2.5} dot={false} name="WHOOP" />
+          </AreaChart>
         </ResponsiveContainer>
       </div>
 
       <div className="chart-card">
         <h3>Sleep Duration vs Need</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.sleep}</p>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={220}>
           <ComposedChart data={sleepData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-            <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple (h)" radius={[4,4,0,0]} />
-            <Bar dataKey="whoop_sleep" fill="#16a34a" name="WHOOP (h)" radius={[4,4,0,0]} />
-            <Area dataKey="whoop_sleep_need" fill="#fbbf2433" stroke="#f59e0b" strokeWidth={2} name="Sleep need (h)" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
+            <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple (h)" radius={[6,6,0,0]} opacity={0.8} />
+            <Bar dataKey="whoop_sleep" fill="#16a34a" name="WHOOP (h)" radius={[6,6,0,0]} opacity={0.8} />
+            <Line type="monotone" dataKey="whoop_sleep_need" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Sleep need (h)" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -176,17 +195,16 @@ export default function TrendsDashboard({ token }) {
       <div className="chart-card">
         <h3>Sleep Stages (WHOOP)</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.stages}</p>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data.sleep_stages}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-            <Bar dataKey="slow_wave_ms" stackId="sleep" fill="#3b82f6" name="Deep" radius={[0,0,0,0]} />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
+            <Bar dataKey="slow_wave_ms" stackId="sleep" fill="#3b82f6" name="Deep" />
             <Bar dataKey="rem_ms" stackId="sleep" fill="#8b5cf6" name="REM" />
             <Bar dataKey="light_ms" stackId="sleep" fill="#93c5fd" name="Light" />
-            <Bar dataKey="awake_ms" stackId="sleep" fill="#fdba74" name="Awake" radius={[4,4,0,0]} />
+            <Bar dataKey="awake_ms" stackId="sleep" fill="#fdba74" name="Awake" radius={[6,6,0,0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -194,15 +212,14 @@ export default function TrendsDashboard({ token }) {
       <div className="chart-card">
         <h3>Daily Strain & Active Energy</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.strain}</p>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={220}>
           <ComposedChart data={strainData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-            <Bar dataKey="apple_active_energy" fill="#2563eb" name="Apple active cal" radius={[4,4,0,0]} />
-            <Line type="monotone" dataKey="whoop_strain" stroke="#16a34a" dot={false} strokeWidth={2} name="WHOOP strain" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
+            <Bar dataKey="apple_active_energy" fill="#2563eb" name="Apple active cal" radius={[6,6,0,0]} opacity={0.7} />
+            <Line type="monotone" dataKey="whoop_strain" stroke="#16a34a" dot={false} strokeWidth={2.5} name="WHOOP strain" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -210,14 +227,19 @@ export default function TrendsDashboard({ token }) {
       <div className="chart-card">
         <h3>7-Day Training Load</h3>
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.25rem 0 0.5rem' }}>{CHART_DESCRIPTIONS.load}</p>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={data.strain.rolling_7d_load}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
-            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-            <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} strokeWidth={2.5} name="7d avg load" />
-          </LineChart>
+        <ResponsiveContainer width="100%" height={220}>
+          <AreaChart data={data.strain.rolling_7d_load}>
+            <defs>
+              <linearGradient id="loadGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+            <Area type="monotone" dataKey="value" stroke="#ef4444" fill="url(#loadGrad)" strokeWidth={2.5} dot={false} name="7d avg load" />
+          </AreaChart>
         </ResponsiveContainer>
       </div>
 

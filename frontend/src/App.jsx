@@ -12,12 +12,12 @@ const TABS = [
   { id: 'briefing', label: 'Today' },
   { id: 'deep-dive', label: 'Deep Dive' },
   { id: 'insights', label: 'Insights' },
-  { id: 'reference', label: 'Reference' },
-  { id: 'settings', label: '⚙' }
+  { id: 'reference', label: 'Reference' }
 ];
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('health_token') || '');
+  const [userEmail, setUserEmail] = useState(localStorage.getItem('health_email') || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -42,6 +42,8 @@ export default function App() {
         body: { email, password }
       });
       setToken(response.token);
+      setUserEmail(response.user?.email || email);
+      localStorage.setItem('health_email', response.user?.email || email);
     } catch (error) {
       setAuthError(error.message);
     }
@@ -59,8 +61,10 @@ export default function App() {
 
   function logout() {
     setToken('');
+    setUserEmail('');
     setRecoveryStatus(null);
     localStorage.removeItem('health_token');
+    localStorage.removeItem('health_email');
   }
 
   if (!token) {
@@ -83,6 +87,9 @@ export default function App() {
     <main className="container">
       <header className="header-row">
         <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>HealthStitch</h1>
+        <button onClick={() => setActiveTab('settings')}
+          style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '0.25rem', opacity: activeTab === 'settings' ? 1 : 0.5 }}
+          title="Settings">⚙</button>
       </header>
 
       {recoveryStatus?.active && (
@@ -173,7 +180,7 @@ export default function App() {
           <div className="card">
             <h3 style={{ margin: '0 0 0.5rem' }}>Account</h3>
             <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
-              Logged in as <strong>{email || 'your account'}</strong>
+              Logged in as <strong>{userEmail}</strong>
             </p>
             <button onClick={logout} style={{ color: '#dc2626', borderColor: '#fecaca' }}>Logout</button>
           </div>
