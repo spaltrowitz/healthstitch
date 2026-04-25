@@ -120,21 +120,34 @@ function FactorBar({ label, value, maxValue, color, unit }) {
 }
 
 export default function DailyBriefing({ token }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [scores, setScores] = useState(null);
   const [checkin, setCheckin] = useState(null);
   const [insights, setInsights] = useState(null);
   const [trends, setTrends] = useState(null);
   const [error, setError] = useState('');
 
+  function shiftDate(days) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    const today = new Date().toISOString().slice(0, 10);
+    const newDate = d.toISOString().slice(0, 10);
+    if (newDate <= today) setDate(newDate);
+  }
+
+  const isToday = date === new Date().toISOString().slice(0, 10);
+
   useEffect(() => {
+    setScores(null);
+    setCheckin(null);
     Promise.all([
-      apiRequest('/dashboard/score-explainer', { token }),
-      apiRequest('/dashboard/morning-checkin', { token }),
+      apiRequest(`/dashboard/score-explainer?date=${date}`, { token }),
+      apiRequest(`/dashboard/morning-checkin?date=${date}`, { token }),
       apiRequest('/dashboard/insights', { token }),
       apiRequest('/dashboard/trends?range=7&source=both', { token })
     ]).then(([s, c, i, t]) => { setScores(s); setCheckin(c); setInsights(i); setTrends(t); })
       .catch((err) => setError(err.message));
-  }, [token]);
+  }, [token, date]);
 
   if (error) return <p className="error">{error}</p>;
   if (!scores || !checkin) return <p>Loading your daily briefing…</p>;
@@ -184,6 +197,19 @@ export default function DailyBriefing({ token }) {
 
   return (
     <section>
+      {/* Date navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <button onClick={() => shiftDate(-1)} style={{ padding: '0.3rem 0.6rem', fontSize: '1rem' }}>←</button>
+        <div style={{ textAlign: 'center' }}>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            max={new Date().toISOString().slice(0, 10)}
+            style={{ border: 'none', fontSize: '1rem', fontWeight: 700, textAlign: 'center', background: 'transparent', cursor: 'pointer' }} />
+          {isToday && <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Today</div>}
+        </div>
+        <button onClick={() => shiftDate(1)} disabled={isToday}
+          style={{ padding: '0.3rem 0.6rem', fontSize: '1rem', opacity: isToday ? 0.3 : 1 }}>→</button>
+      </div>
+
       {/* Gauges row */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '0.5rem' }}>
