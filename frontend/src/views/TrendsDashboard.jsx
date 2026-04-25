@@ -37,26 +37,42 @@ const CHART_DESCRIPTIONS = {
   comparison: 'The delta line shows the difference between devices. Consistent offsets are normal; large swings may indicate one device had a poor reading.'
 };
 
+function shortDate(d) {
+  if (!d) return d;
+  return d.replace(/^20(\d{2})-/, '$1-');
+}
+
 export default function TrendsDashboard({ token }) {
   const [range, setRange] = useState('30');
   const [source, setSource] = useState('both');
+  const [customFrom, setCustomFrom] = useState(null);
+  const [customTo, setCustomTo] = useState(null);
   const [data, setData] = useState(null);
   const [compMetric, setCompMetric] = useState('sleep_duration');
   const [compData, setCompData] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiRequest(`/dashboard/trends?range=${range}&source=${source}`, { token })
+    const url = customFrom && customTo
+      ? `/dashboard/trends?from=${customFrom}&to=${customTo}&source=${source}`
+      : `/dashboard/trends?range=${range}&source=${source}`;
+    apiRequest(url, { token })
       .then(setData)
       .catch((err) => setError(err.message));
-  }, [range, source, token]);
+  }, [range, source, customFrom, customTo, token]);
 
   useEffect(() => {
-    const days = range === 'all' ? 3650 : Number(range);
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const fromStr = from.toISOString().slice(0, 10);
-    const toStr = new Date().toISOString().slice(0, 10);
+    let fromStr, toStr;
+    if (customFrom && customTo) {
+      fromStr = customFrom;
+      toStr = customTo;
+    } else {
+      const days = range === 'all' ? 3650 : Number(range);
+      const from = new Date();
+      from.setDate(from.getDate() - days);
+      fromStr = from.toISOString().slice(0, 10);
+      toStr = new Date().toISOString().slice(0, 10);
+    }
     apiRequest(`/dashboard/device-comparison?metric=${compMetric}&from=${fromStr}&to=${toStr}`, { token })
       .then(setCompData)
       .catch(() => {});
@@ -103,7 +119,8 @@ export default function TrendsDashboard({ token }) {
     <section>
       <h2>Trends</h2>
       <div className="controls-inline">
-        <DateRangeSelector value={range} onChange={setRange} />
+        <DateRangeSelector value={range} onChange={(v) => { setCustomFrom(null); setCustomTo(null); setRange(v); }}
+          onCustomRange={(from, to) => { setCustomFrom(from); setCustomTo(to); }} />
         <SourceToggle value={source} onChange={setSource} />
       </div>
 
@@ -113,7 +130,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={hrvData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
@@ -129,7 +146,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={restingData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
@@ -145,7 +162,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <ComposedChart data={sleepData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
@@ -162,7 +179,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={data.sleep_stages}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
@@ -180,7 +197,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <ComposedChart data={strainData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
@@ -196,7 +213,7 @@ export default function TrendsDashboard({ token }) {
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={data.strain.rolling_7d_load}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={shortDate} />
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={35} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
             <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} strokeWidth={2.5} name="7d avg load" />
@@ -239,7 +256,7 @@ export default function TrendsDashboard({ token }) {
                 delta: compMetric === 'sleep_duration' && r.delta ? r.delta / 3600000 : r.delta
               }))}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={shortDate} />
                 <YAxis />
                 <Tooltip />
                 <Legend />
