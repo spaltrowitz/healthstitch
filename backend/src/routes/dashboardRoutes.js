@@ -720,6 +720,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'comparison',
       title: 'Sleep Duration: Apple Watch vs WHOOP',
+      status: Math.abs(sleepComp.avg_diff) < 0.5 ? 'green' : Math.abs(sleepComp.avg_diff) < 1 ? 'yellow' : 'red',
       body: `Over ${sleepComp.days} overlapping nights, Apple Watch reports an average of ${sleepComp.apple_avg}h vs WHOOP's ${sleepComp.whoop_avg}h — Apple Watch records ${diffMin} minutes ${direction} on average.`,
       detail: absDiff > 0.5
         ? 'This is a significant difference. Apple Watch may count light dozing as sleep, while WHOOP uses heart rate to detect true sleep onset.'
@@ -745,6 +746,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'comparison',
       title: 'Resting Heart Rate: Apple Watch vs WHOOP',
+      status: Math.abs(rhrComp.avg_diff) < 3 ? 'green' : Math.abs(rhrComp.avg_diff) < 5 ? 'yellow' : 'red',
       body: `Over ${rhrComp.days} days, Apple Watch averages ${rhrComp.apple_avg} bpm vs WHOOP's ${rhrComp.whoop_avg} bpm — Apple reads ${Math.abs(rhrComp.avg_diff)} bpm ${direction}.`,
       detail: 'WHOOP measures RHR during your deepest sleep phase (slow-wave sleep), while Apple Watch samples throughout the night. This can cause a consistent offset between the two.',
       data: { apple_avg: rhrComp.apple_avg, whoop_avg: rhrComp.whoop_avg, diff_bpm: rhrComp.avg_diff, days: rhrComp.days }
@@ -766,6 +768,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'comparison',
       title: 'HRV: Different Measurements, Different Numbers',
+      status: 'yellow',
       body: `Apple Watch HRV (SDNN) averages ${hrvComp.apple_avg_sdnn} ms while WHOOP HRV (RMSSD) averages ${hrvComp.whoop_avg_rmssd} ms over ${hrvComp.days} overlapping days.`,
       detail: 'These are fundamentally different calculations. SDNN measures overall variability across all heartbeat intervals, while RMSSD measures beat-to-beat changes — more sensitive to parasympathetic (recovery) activity. Comparing their trends is meaningful, but the absolute numbers will always differ.',
       data: { apple_sdnn: hrvComp.apple_avg_sdnn, whoop_rmssd: hrvComp.whoop_avg_rmssd, days: hrvComp.days }
@@ -804,6 +807,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'correlation',
       title: 'Do Your Devices Agree on HRV Trends?',
+      status: corr > 0.6 ? 'green' : corr > 0.3 ? 'yellow' : 'red',
       body: `Correlation: ${corrPct}% (r = ${corr.toFixed(2)}) over ${n} days.`,
       detail: interpretation,
       data: { correlation: Math.round(corr * 100) / 100, days: n }
@@ -834,6 +838,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Recovery Zone → Next Day Activity',
+      status: zoneMap.red && zoneMap.green && zoneMap.red.avg_next_strain > zoneMap.green.avg_next_strain ? 'red' : 'green',
       body: parts.join('. ') + '.',
       detail: 'This shows whether you tend to train harder on high-recovery days. Ideally, green days should correlate with higher strain and red days with rest.',
       data: recoveryStrain
@@ -862,6 +867,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Sleep Consistency',
+      status: stdDev < 30 ? 'green' : stdDev < 60 ? 'yellow' : 'red',
       body: `Your average bedtime is ${timeStr} with ±${Math.round(stdDev)} minutes variation over the last ${sleepTimes.length} nights.`,
       detail: stdDev < 30 ? 'Excellent consistency. A regular sleep schedule supports better recovery.' : stdDev < 60 ? 'Moderate consistency. Some variation is normal, but tightening your sleep window could improve recovery.' : 'High variation in bedtime. Irregular sleep schedules can reduce sleep quality even when total hours look fine.',
       data: { avg_onset_minutes: Math.round(avgOnset), std_dev_minutes: Math.round(stdDev), nights: sleepTimes.length }
@@ -888,6 +894,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'What Drives Your Best vs Worst Recovery?',
+      status: 'green',
       body: `Best 3 days (avg ${Math.round(top3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${topAvgSleep.toFixed(1)}h sleep. Worst 3 days (avg ${Math.round(bottom3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${bottomAvgSleep.toFixed(1)}h sleep.`,
       detail: 'Sleep duration is the strongest predictor of recovery. Other factors include previous-day strain, alcohol, and sleep consistency.',
       data: { best: top3, worst: bottom3 }
@@ -916,6 +923,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Workout Impact on Recovery',
+      status: 'green',
       body: parts.join('. ') + '.',
       detail: 'Shows how workout intensity affects your next-day recovery. Higher strain should ideally be followed by adequate sleep to maintain recovery.'
     });
@@ -940,6 +948,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Sleep Quality Breakdown',
+      status: sleepQuality.avg_deep_pct >= 15 && sleepQuality.avg_rem_pct >= 20 ? 'green' : sleepQuality.avg_deep_pct < 15 && sleepQuality.avg_rem_pct < 20 ? 'red' : 'yellow',
       body: `Over ${sleepQuality.nights} nights: ${sleepQuality.avg_total_hours}h avg total. Deep sleep: ${sleepQuality.avg_deep_pct}% (${deepStatus}). REM: ${sleepQuality.avg_rem_pct}% (${remStatus}). Light: ${sleepQuality.avg_light_pct}%.`,
       detail: 'Deep sleep is critical for physical recovery and immune function. REM supports memory consolidation and emotional regulation. Getting enough hours but low deep/REM percentages suggests sleep quality issues.'
     });
@@ -966,6 +975,7 @@ router.get('/insights', requireAuth, (req, res) => {
       insights.push({
         type: 'pattern',
         title: 'Weekend vs Weekday Sleep',
+        status: diff < 1 ? 'green' : diff < 1.5 ? 'yellow' : 'red',
         body: `Weekdays: ${weekday.avg_hours}h avg (${weekday.nights} nights). Weekends: ${weekend.avg_hours}h avg (${weekend.nights} nights). You sleep ${(diff * 60).toFixed(0)} minutes ${direction} on weekends.`,
         detail: diff > 1 ? 'A difference of more than 1 hour suggests social jet lag — your body\'s clock shifts on weekends. This can reduce sleep quality even when total hours increase.' : 'Good consistency between weekdays and weekends. This supports a stable circadian rhythm.'
       });
@@ -1000,6 +1010,7 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Your Optimal Sleep Duration',
+      status: 'green',
       body: `Your best recovery (${best.avg_recovery}%) happens in the ${best.bucket} range. ${parts.join('. ')}.`,
       detail: 'More sleep isn\'t always better — oversleeping can indicate poor sleep quality or excessive sleep need from high strain. Find your sweet spot.'
     });
@@ -1025,6 +1036,7 @@ router.get('/insights', requireAuth, (req, res) => {
       insights.push({
         type: 'comparison',
         title: 'Blood Oxygen Impact',
+        status: lowDays > 2 ? 'red' : lowDays > 0 ? 'yellow' : 'green',
         body: `SpO2 was below 90% on ${lowDays} of the last 7 days (avg ${recentAvg.toFixed(1)}%).${priorAvg ? ` Previous 7 days averaged ${priorAvg.toFixed(1)}%.` : ''}`,
         detail: 'Low SpO2 significantly depresses WHOOP recovery scores. If medication-related, your actual recovery state may be better than WHOOP reports. Consider this when interpreting your recovery scores.',
         data: { recent_avg: Math.round(recentAvg * 10) / 10, prior_avg: priorAvg ? Math.round(priorAvg * 10) / 10 : null, low_days: lowDays }
