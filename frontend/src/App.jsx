@@ -10,6 +10,7 @@ import RecoveryModeModal from './components/RecoveryModeModal';
 const TABS = [
   { id: 'briefing', label: 'Today' },
   { id: 'deep-dive', label: 'Deep Dive' },
+  { id: 'insights', label: 'Insights' },
   { id: 'upload', label: 'Upload' }
 ];
 
@@ -139,9 +140,9 @@ export default function App() {
         <>
           <TrendsDashboard token={token} />
           <WorkoutLog token={token} />
-          <DataInsights token={token} />
         </>
       )}
+      {activeTab === 'insights' && <DataInsights token={token} />}
       {activeTab === 'upload' && <DataUpload token={token} />}
 
       {showRecoveryModal && (

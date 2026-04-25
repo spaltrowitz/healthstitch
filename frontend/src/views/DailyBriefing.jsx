@@ -345,21 +345,6 @@ export default function DailyBriefing({ token }) {
           )}
         </>
       )}
-
-      {/* Other insights (non-sleep, non-HRV, non-comparison) */}
-      {otherInsights.length > 0 && (
-        <>
-          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>KEY INSIGHTS</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {otherInsights.map((insight, i) => (
-              <div key={i} style={{ padding: '0.55rem 0.75rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: '0.82rem', lineHeight: 1.4 }}>
-                <strong>{insight.title}</strong>
-                <span style={{ color: '#475569' }}> — {insight.body}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </section>
   );
 }
