@@ -312,16 +312,26 @@ export default function DailyBriefing({ token }) {
           <h3 style={{ margin: '0 0 0.65rem', fontSize: '0.8rem' }}>SLEEP STAGES</h3>
           <SleepDonut apple={apple} whoop={whoop} />
           {whoop?.need_hours && (
-            <div style={{ textAlign: 'center', marginTop: '0.65rem', fontSize: '0.82rem' }}>
-              <span style={{ color: '#64748b' }}>Sleep need: <strong>{whoop.need_hours}h</strong></span>
-              {whoop.total_hours > whoop.need_hours
-                ? <span style={{ color: '#16a34a', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
-                : <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>⚠ {(whoop.need_hours - whoop.total_hours).toFixed(1)}h short</span>
-              }
+            <div style={{ textAlign: 'center', marginTop: '0.65rem' }}>
+              <div style={{ fontSize: '0.82rem' }}>
+                <span title="WHOOP calculates sleep need from: your baseline sleep requirement + additional need from yesterday's strain + any accumulated sleep debt. Low strain days = lower sleep need."
+                  style={{ color: '#64748b', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>
+                  Sleep need: <strong>{whoop.need_hours}h</strong> ⓘ
+                </span>
+                {whoop.total_hours > whoop.need_hours
+                  ? <span style={{ color: '#16a34a', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
+                  : <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>⚠ {(whoop.need_hours - whoop.total_hours).toFixed(1)}h short</span>
+                }
+              </div>
+              {whoop.total_hours - whoop.need_hours > 1.5 && (
+                <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                  Sleep need is low because yesterday's strain was low. During recovery, extra sleep supports healing.
+                </p>
+              )}
             </div>
           )}
           {apple && whoop && Math.abs(apple.total_hours - whoop.total_hours) > 0.1 && (
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', lineHeight: 1.4 }}>
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.5rem', lineHeight: 1.4 }}>
               {Math.round(Math.abs(apple.total_hours - whoop.total_hours) * 60)} min difference —
               {apple.total_hours > whoop.total_hours
                 ? ' Apple includes more time in bed. WHOOP uses HR to detect actual sleep onset, so it\'s stricter.'
