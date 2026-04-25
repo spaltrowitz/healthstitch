@@ -5,12 +5,14 @@ import TrendsDashboard from './views/TrendsDashboard';
 import WorkoutLog from './views/WorkoutLog';
 import DataInsights from './views/DataInsights';
 import DataUpload from './views/DataUpload';
+import DeviceReference from './views/DeviceReference';
 import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
   { id: 'briefing', label: 'Today' },
   { id: 'deep-dive', label: 'Deep Dive' },
   { id: 'insights', label: 'Insights' },
+  { id: 'reference', label: 'Reference' },
   { id: 'upload', label: 'Upload' }
 ];
 
@@ -143,6 +145,7 @@ export default function App() {
         </>
       )}
       {activeTab === 'insights' && <DataInsights token={token} />}
+      {activeTab === 'reference' && <DeviceReference />}
       {activeTab === 'upload' && <DataUpload token={token} />}
 
       {showRecoveryModal && (
