@@ -13,7 +13,7 @@ const TABS = [
   { id: 'deep-dive', label: 'Deep Dive' },
   { id: 'insights', label: 'Insights' },
   { id: 'reference', label: 'Reference' },
-  { id: 'upload', label: 'Upload' }
+  { id: 'settings', label: '⚙' }
 ];
 
 export default function App() {
@@ -44,25 +44,6 @@ export default function App() {
       setToken(response.token);
     } catch (error) {
       setAuthError(error.message);
-    }
-  }
-
-  async function syncWhoop() {
-    try {
-      setSyncMessage('Syncing WHOOP…');
-      const response = await apiRequest('/whoop/sync', { method: 'POST', token, body: {} });
-      setSyncMessage(`WHOOP sync complete: ${JSON.stringify(response.counts)}`);
-    } catch (error) {
-      if (error.message.includes('not connected')) {
-        try {
-          const response = await apiRequest('/whoop/connect', { token });
-          window.location.href = response.auth_url;
-        } catch (connError) {
-          setSyncMessage(connError.message);
-        }
-      } else {
-        setSyncMessage(error.message);
-      }
     }
   }
 
@@ -102,12 +83,6 @@ export default function App() {
     <main className="container">
       <header className="header-row">
         <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>HealthStitch</h1>
-        <div className="button-row">
-          {!recoveryStatus?.active && (
-            <button onClick={() => setShowRecoveryModal(true)}>🩺 Recovery Mode</button>
-          )}
-          <button onClick={logout}>Logout</button>
-        </div>
       </header>
 
       {recoveryStatus?.active && (
@@ -146,7 +121,64 @@ export default function App() {
       )}
       {activeTab === 'insights' && <DataInsights token={token} />}
       {activeTab === 'reference' && <DeviceReference />}
-      {activeTab === 'upload' && <DataUpload token={token} />}
+      {activeTab === 'settings' && (
+        <section>
+          <h2>Settings</h2>
+
+          {/* Recovery Mode */}
+          <div className="card" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem' }}>Recovery Mode</h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+              Pause baseline comparisons during injury, surgery, illness, or any abnormal period.
+              Your data is still tracked but excluded from baseline calculations.
+            </p>
+            {recoveryStatus?.active ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fefce8', padding: '0.65rem', borderRadius: 10 }}>
+                <div>
+                  <strong style={{ color: '#92400e' }}>Active</strong>
+                  <span style={{ color: '#a16207', marginLeft: '0.5rem' }}>
+                    {recoveryStatus.active.reason} — Day {recoveryStatus.active.day_number} (since {recoveryStatus.active.start_date})
+                  </span>
+                </div>
+                <button onClick={endRecoveryMode} style={{ fontSize: '0.8rem' }}>End Recovery</button>
+              </div>
+            ) : (
+              <button onClick={() => setShowRecoveryModal(true)}
+                style={{ background: '#2563eb', color: '#fff', borderColor: '#2563eb' }}>
+                Start Recovery Mode
+              </button>
+            )}
+            {recoveryStatus?.history?.length > 1 && (
+              <details style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: '#64748b' }}>
+                <summary style={{ cursor: 'pointer' }}>History ({recoveryStatus.history.length} periods)</summary>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {recoveryStatus.history.map((rp, i) => (
+                    <div key={i} style={{ padding: '0.3rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                      {rp.reason} — {rp.start_date} to {rp.end_date || 'ongoing'}
+                      {rp.notes && <span style={{ color: '#94a3b8' }}> · {rp.notes}</span>}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+
+          {/* Data Upload */}
+          <div className="card" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem' }}>Data Import</h3>
+            <DataUpload token={token} />
+          </div>
+
+          {/* Account */}
+          <div className="card">
+            <h3 style={{ margin: '0 0 0.5rem' }}>Account</h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem' }}>
+              Logged in as <strong>{email || 'your account'}</strong>
+            </p>
+            <button onClick={logout} style={{ color: '#dc2626', borderColor: '#fecaca' }}>Logout</button>
+          </div>
+        </section>
+      )}
 
       {showRecoveryModal && (
         <RecoveryModeModal

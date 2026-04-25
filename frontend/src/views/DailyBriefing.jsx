@@ -8,13 +8,13 @@ import { apiRequest } from '../api/client';
 const ZONE_COLORS = { red: '#ef4444', yellow: '#f59e0b', green: '#22c55e' };
 const STAGE_COLORS = { deep: '#3b82f6', rem: '#8b5cf6', light: '#60a5fa', awake: '#f97316' };
 
-function GaugeRing({ value, max, color, size = 120, label, sublabel }) {
+function GaugeRing({ value, max, color, size = 120, label, sublabel, tooltip, rangeLabel, source }) {
   const pct = value != null ? Math.min(value / max, 1) : 0;
   const r = (size - 16) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - pct);
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div style={{ textAlign: 'center' }} title={tooltip}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={10} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={10}
@@ -26,8 +26,10 @@ function GaugeRing({ value, max, color, size = 120, label, sublabel }) {
           {value ?? '--'}
         </div>
       </div>
-      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: 2 }}>{label}</div>
-      {sublabel && <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{sublabel}</div>}
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: 2, cursor: tooltip ? 'help' : 'default', borderBottom: tooltip ? '1px dotted #cbd5e1' : 'none', display: 'inline-block' }}>{label}</div>
+      {source && <div style={{ fontSize: '0.6rem', color: source === 'WHOOP' ? '#16a34a' : '#2563eb', fontWeight: 600 }}>{source}</div>}
+      {rangeLabel && <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{rangeLabel}</div>}
+      {sublabel && !source && <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{sublabel}</div>}
     </div>
   );
 }
@@ -195,6 +197,42 @@ export default function DailyBriefing({ token }) {
     .filter(i => i.type !== 'info' && i.type !== 'comparison' && !i.title?.includes('Recovery Mode') && !usedTitles.has(i.title))
     .slice(0, 3);
 
+  // Compute trend summaries
+  function trendSummary(data, key1, key2, label, unit) {
+    if (!data || data.length < 2) return null;
+    const vals1 = data.map(d => d[key1]).filter(v => v != null);
+    const vals2 = key2 ? data.map(d => d[key2]).filter(v => v != null) : [];
+    const allVals = [...vals1, ...vals2];
+    if (allVals.length < 2) return null;
+    const avg = allVals.reduce((s, v) => s + v, 0) / allVals.length;
+    const firstHalf = allVals.slice(0, Math.ceil(allVals.length / 2));
+    const secondHalf = allVals.slice(Math.floor(allVals.length / 2));
+    const firstAvg = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
+    const pctChange = firstAvg > 0 ? Math.round(((secondAvg - firstAvg) / firstAvg) * 100) : 0;
+    const direction = pctChange > 5 ? 'up' : pctChange < -5 ? 'down' : 'stable';
+    const agree = vals1.length > 0 && vals2.length > 0;
+    return { avg: Math.round(avg * 10) / 10, pctChange, direction, agree, unit, label };
+  }
+
+  const hrvTrend = trendSummary(hrvData, 'apple', 'whoop', 'HRV', 'ms');
+  const rhrTrend = trendSummary(rhrData, 'apple_watch', 'whoop', 'Resting HR', 'bpm');
+  const sleepTrend = trendSummary(sleepData, 'apple_watch', 'whoop', 'Sleep', 'h');
+
+  function trendText(t) {
+    if (!t) return '';
+    const arrow = t.direction === 'up' ? '↑' : t.direction === 'down' ? '↓' : '→';
+    const dir = t.direction === 'stable' ? 'Stable' : `${t.direction === 'up' ? 'Up' : 'Down'} ${Math.abs(t.pctChange)}%`;
+    const agree = t.agree ? ' · Both devices agree' : '';
+    return `${arrow} ${dir} this week · Avg ${t.avg}${t.unit}${agree}`;
+  }
+
+  // Source labels for gauges
+  const hrvSourceLabel = checkin.hrv?.source === 'whoop' ? 'WHOOP' : checkin.hrv?.source === 'apple_watch' ? 'Apple Watch' : null;
+  const rhrSourceLabel = checkin.resting_hr?.source === 'whoop' ? 'WHOOP' : checkin.resting_hr?.source === 'apple_watch' ? 'Apple Watch' : null;
+  const hrvBaseline = checkin.hrv?.baseline_90d_apple;
+  const rhrBaseline = checkin.resting_hr?.baseline_30d_apple;
+
   return (
     <section>
       {/* Date navigation */}
@@ -216,22 +254,34 @@ export default function DailyBriefing({ token }) {
           <GaugeRing
             value={recovery?.score} max={100}
             color={ZONE_COLORS[recovery?.zone] || '#94a3b8'}
-            label="Recovery" sublabel="WHOOP"
+            label="Recovery"
+            source="WHOOP"
+            tooltip="WHOOP Recovery: Combines HRV, resting HR, SpO2, skin temp, and respiratory rate measured during your deepest sleep. Green (67-100%) = ready to train. Yellow (34-66%) = moderate. Red (0-33%) = prioritize rest."
+            rangeLabel={recovery?.zone === 'green' ? 'Green zone' : recovery?.zone === 'yellow' ? 'Yellow zone' : recovery?.zone === 'red' ? 'Red zone' : null}
           />
           <GaugeRing
             value={sleepScore?.score} max={100}
             color={sleepScore?.score >= 85 ? '#22c55e' : sleepScore?.score >= 70 ? '#f59e0b' : '#ef4444'}
-            label="Sleep Score" sublabel="WHOOP"
+            label="Sleep Score"
+            source="WHOOP"
+            tooltip="WHOOP Sleep Performance: Actual sleep time ÷ sleep need. 100% = you met your full sleep need. Below 70% = significant sleep debt."
+            rangeLabel={whoop?.need_hours ? `Need: ${whoop.need_hours}h` : null}
           />
           <GaugeRing
             value={checkin.hrv?.value} max={120}
             color="#8b5cf6"
-            label="HRV" sublabel={checkin.hrv?.source === 'whoop' ? 'RMSSD' : 'SDNN'}
+            label="HRV"
+            source={hrvSourceLabel}
+            tooltip={`Heart Rate Variability: The variation in time between heartbeats, measured in milliseconds. Higher = better recovered. This reading is from ${hrvSourceLabel || 'your device'} using ${checkin.hrv?.source === 'whoop' ? 'RMSSD (beat-to-beat changes, best for recovery)' : 'SDNN (overall variability, good for trends)'}.`}
+            rangeLabel={hrvBaseline ? `90d avg: ${Math.round(hrvBaseline)}ms` : null}
           />
           <GaugeRing
             value={checkin.resting_hr?.value} max={100}
             color="#ef4444"
-            label="Resting HR" sublabel="bpm"
+            label="Resting HR"
+            source={rhrSourceLabel}
+            tooltip={`Resting Heart Rate: Your lowest heart rate during sleep, in beats per minute. Lower is generally better and indicates good cardiovascular fitness. This reading is from ${rhrSourceLabel || 'your device'}. An elevated RHR can signal stress, illness, or poor recovery.`}
+            rangeLabel={rhrBaseline ? `30d avg: ${Math.round(rhrBaseline)} bpm` : null}
           />
         </div>
       </div>
@@ -292,10 +342,11 @@ export default function DailyBriefing({ token }) {
 
           {hrvData.length > 0 && (
             <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>HRV (ms)</span>
                 <span title="SDNN measures total variability across all heartbeats. RMSSD measures beat-to-beat changes and is more sensitive to recovery. Both are valid — trends matter more than absolute numbers." style={{ fontSize: '0.7rem', color: '#94a3b8', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>Apple SDNN · WHOOP RMSSD ⓘ</span>
               </div>
+              {hrvTrend && <div style={{ fontSize: '0.75rem', color: hrvTrend.direction === 'up' ? '#16a34a' : hrvTrend.direction === 'down' ? '#ef4444' : '#64748b', marginBottom: '0.35rem' }}>{trendText(hrvTrend)}</div>}
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={hrvData} barGap={2}>
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -310,10 +361,11 @@ export default function DailyBriefing({ token }) {
 
           {rhrData.length > 0 && (
             <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Resting Heart Rate (bpm)</span>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Lower is generally better</span>
+                <span title="Your lowest heart rate during sleep. Lower generally means better cardiovascular fitness. An upward trend can signal stress, illness, or overtraining." style={{ fontSize: '0.7rem', color: '#94a3b8', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>Lower is better ⓘ</span>
               </div>
+              {rhrTrend && <div style={{ fontSize: '0.75rem', color: rhrTrend.direction === 'down' ? '#16a34a' : rhrTrend.direction === 'up' ? '#ef4444' : '#64748b', marginBottom: '0.35rem' }}>{trendText(rhrTrend)}</div>}
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={rhrData} barGap={2}>
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -328,10 +380,11 @@ export default function DailyBriefing({ token }) {
 
           {sleepData.length > 0 && (
             <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Sleep (hours)</span>
                 <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Recommended: 7-9 hours</span>
               </div>
+              {sleepTrend && <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.35rem' }}>{trendText(sleepTrend)}</div>}
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={sleepData} barGap={2}>
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
