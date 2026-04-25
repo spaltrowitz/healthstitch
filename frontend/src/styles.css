@@ -188,7 +188,8 @@ h2 {
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.25rem;
 }
 
 select, input[type="date"] {
