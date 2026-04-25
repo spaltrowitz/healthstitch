@@ -130,7 +130,6 @@ export default function WorkoutLog({ token }) {
 
       <CollapsibleSection
         title={`Workout History (${data.workouts.length})`}
-        subtitle="Re-upload Apple Health to fill in missing HR and calories."
         defaultOpen={false}
       >
         <div style={{ overflowX: 'auto' }}>

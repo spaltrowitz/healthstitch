@@ -419,8 +419,10 @@ router.get('/trends', requireAuth, (req, res) => {
   const range = String(req.query.range || '30').toLowerCase();
   const sources = sourceList(String(req.query.source || 'both'));
 
-  let fromDate = null;
-  if (range !== 'all') {
+  let fromDate = req.query.from || null;
+  let toDate = req.query.to || null;
+
+  if (!fromDate && range !== 'all') {
     const days = Number(range);
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - (Number.isFinite(days) ? days : 30) + 1);
@@ -429,8 +431,9 @@ router.get('/trends', requireAuth, (req, res) => {
 
   const sourcePlaceholders = sources.map(() => '?').join(', ');
   const baseParams = [userId, ...sources];
-  const dateClause = fromDate ? 'AND date(recorded_at) >= ?' : '';
-  const sleepDateClause = fromDate ? 'AND sleep_date >= ?' : '';
+  const dateClause = fromDate ? (toDate ? 'AND date(recorded_at) BETWEEN ? AND ?' : 'AND date(recorded_at) >= ?') : '';
+  const sleepDateClause = fromDate ? (toDate ? 'AND sleep_date BETWEEN ? AND ?' : 'AND sleep_date >= ?') : '';
+  const dateParams = fromDate ? (toDate ? [fromDate, toDate] : [fromDate]) : [];
 
   const hrv = db.prepare(`
     SELECT date(recorded_at) AS date, source, metric_type, AVG(value) AS value
@@ -441,7 +444,7 @@ router.get('/trends', requireAuth, (req, res) => {
       ${dateClause}
     GROUP BY date, source, metric_type
     ORDER BY date ASC
-  `).all(...baseParams, ...(fromDate ? [fromDate] : []));
+  `).all(...baseParams, ...dateParams);
 
   const restingHr = db.prepare(`
     SELECT date(recorded_at) AS date, source, AVG(value) AS value
@@ -452,7 +455,7 @@ router.get('/trends', requireAuth, (req, res) => {
       ${dateClause}
     GROUP BY date, source
     ORDER BY date ASC
-  `).all(...baseParams, ...(fromDate ? [fromDate] : []));
+  `).all(...baseParams, ...dateParams);
 
   const sleep = db.prepare(`
     SELECT sleep_date AS date, source, total_duration_ms, sleep_need_ms
@@ -461,7 +464,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND source IN (${sourcePlaceholders})
       ${sleepDateClause}
     ORDER BY sleep_date ASC
-  `).all(...baseParams, ...(fromDate ? [fromDate] : []));
+  `).all(...baseParams, ...dateParams);
 
   const sleepStages = db.prepare(`
     SELECT sleep_date AS date, slow_wave_ms, rem_ms, light_ms, awake_ms
@@ -470,7 +473,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND source = 'whoop'
       ${fromDate ? 'AND sleep_date >= ?' : ''}
     ORDER BY sleep_date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
+  `).all(userId, ...dateParams);
 
   const whoopStrain = db.prepare(`
     SELECT date(recorded_at) AS date, value AS whoop_strain
@@ -479,7 +482,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND metric_type = 'daily_strain'
       ${dateClause}
     ORDER BY date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
+  `).all(userId, ...dateParams);
 
   const appleLoad = db.prepare(`
     SELECT date(recorded_at) AS date, value AS apple_active_energy
@@ -488,7 +491,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND metric_type = 'active_energy'
       ${dateClause}
     ORDER BY date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
+  `).all(userId, ...dateParams);
 
   const loadRows = db.prepare(`
     SELECT date(recorded_at) AS date,
@@ -502,7 +505,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND metric_type IN ('daily_strain', 'active_energy')
       ${dateClause}
     ORDER BY date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
+  `).all(userId, ...dateParams);
 
   const loadByDate = new Map();
   for (const row of loadRows) {
@@ -522,7 +525,7 @@ router.get('/trends', requireAuth, (req, res) => {
       AND source = 'apple_watch'
       ${fromDate ? 'AND baseline_date >= ?' : ''}
     ORDER BY baseline_date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
+  `).all(userId, ...dateParams);
 
   return res.json({
     range,
@@ -651,14 +654,16 @@ router.get('/workouts', requireAuth, (req, res) => {
   const weekly = {};
   const monthly = {};
   for (const row of loadRows) {
-    weekly[row.week] = (weekly[row.week] || 0) + (row.load || 0);
-    monthly[row.month] = (monthly[row.month] || 0) + (row.load || 0);
+    const weekLabel = 'W' + row.week.slice(5);
+    weekly[weekLabel] = (weekly[weekLabel] || 0) + (row.load || 0);
+    const monthLabel = row.month.slice(2);
+    monthly[monthLabel] = (monthly[monthLabel] || 0) + (row.load || 0);
   }
 
   return res.json({
     workouts,
-    weekly_load: Object.entries(weekly).map(([period, load]) => ({ period, load })),
-    monthly_load: Object.entries(monthly).map(([period, load]) => ({ period, load }))
+    weekly_load: Object.entries(weekly).map(([period, load]) => ({ period, load: Math.round(load * 100) / 100 })),
+    monthly_load: Object.entries(monthly).map(([period, load]) => ({ period, load: Math.round(load * 100) / 100 }))
   });
 });
 

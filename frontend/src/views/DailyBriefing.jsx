@@ -223,7 +223,7 @@ export default function DailyBriefing({ token }) {
     if (!t) return '';
     const arrow = t.direction === 'up' ? '↑' : t.direction === 'down' ? '↓' : '→';
     const dir = t.direction === 'stable' ? 'Stable' : `${t.direction === 'up' ? 'Up' : 'Down'} ${Math.abs(t.pctChange)}%`;
-    const agree = t.agree ? ' · Both devices agree' : '';
+    const agree = t.agree ? ' · Devices aligned' : '';
     return `${arrow} ${dir} this week · Avg ${t.avg}${t.unit}${agree}`;
   }
 
@@ -331,72 +331,43 @@ export default function DailyBriefing({ token }) {
         </div>
       )}
 
-      {/* 7-day charts */}
-      {trends && (hrvData.length > 0 || rhrData.length > 0 || sleepData.length > 0) && (
-        <>
-          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>7-DAY TRENDS</h3>
-          <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', fontSize: '0.7rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#2563eb', display: 'inline-block' }} /> Apple Watch</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.5rem' }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', display: 'inline-block' }} /> WHOOP</span>
+      {/* 7-day trend summaries (charts are in Deep Dive) */}
+      {(hrvTrend || rhrTrend || sleepTrend) && (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.8rem' }}>7-DAY TRENDS</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {hrvTrend && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 500 }}
+                  title="Heart Rate Variability: daily average from your device. Apple measures throughout the day, WHOOP measures during sleep.">
+                  HRV <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>({hrvSourceLabel || 'avg'})</span>
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: hrvTrend.direction === 'up' ? '#16a34a' : hrvTrend.direction === 'down' ? '#ef4444' : '#64748b' }}>
+                  {trendText(hrvTrend)}
+                </span>
+              </div>
+            )}
+            {rhrTrend && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 500 }}
+                  title="Resting Heart Rate: your lowest HR during sleep. Lower is generally better.">
+                  Resting HR
+                </span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: rhrTrend.direction === 'down' ? '#16a34a' : rhrTrend.direction === 'up' ? '#ef4444' : '#64748b' }}>
+                  {trendText(rhrTrend)}
+                </span>
+              </div>
+            )}
+            {sleepTrend && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>Sleep</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748b' }}>
+                  {trendText(sleepTrend)}
+                </span>
+              </div>
+            )}
           </div>
-
-          {hrvData.length > 0 && (
-            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>HRV (ms)</span>
-                <span title="SDNN measures total variability across all heartbeats. RMSSD measures beat-to-beat changes and is more sensitive to recovery. Both are valid — trends matter more than absolute numbers." style={{ fontSize: '0.7rem', color: '#94a3b8', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>Apple SDNN · WHOOP RMSSD ⓘ</span>
-              </div>
-              {hrvTrend && <div style={{ fontSize: '0.75rem', color: hrvTrend.direction === 'up' ? '#16a34a' : hrvTrend.direction === 'down' ? '#ef4444' : '#64748b', marginBottom: '0.35rem' }}>{trendText(hrvTrend)}</div>}
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={hrvData} barGap={2}>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 10', 'dataMax + 10']} />
-                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="apple" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {rhrData.length > 0 && (
-            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Resting Heart Rate (bpm)</span>
-                <span title="Your lowest heart rate during sleep. Lower generally means better cardiovascular fitness. An upward trend can signal stress, illness, or overtraining." style={{ fontSize: '0.7rem', color: '#94a3b8', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>Lower is better ⓘ</span>
-              </div>
-              {rhrTrend && <div style={{ fontSize: '0.75rem', color: rhrTrend.direction === 'down' ? '#16a34a' : rhrTrend.direction === 'up' ? '#ef4444' : '#64748b', marginBottom: '0.35rem' }}>{trendText(rhrTrend)}</div>}
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={rhrData} barGap={2}>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} width={30} axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
-                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {sleepData.length > 0 && (
-            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.15rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>Sleep (hours)</span>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Recommended: 7-9 hours</span>
-              </div>
-              {sleepTrend && <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.35rem' }}>{trendText(sleepTrend)}</div>}
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={sleepData} barGap={2}>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} width={25} axisLine={false} tickLine={false} domain={[0, 'dataMax + 1']} />
-                  <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 8, border: '1px solid #e2e8f0' }} formatter={(v) => `${v}h`} />
-                  <Bar dataKey="apple_watch" fill="#2563eb" name="Apple" radius={[4,4,0,0]} barSize={14} />
-                  <Bar dataKey="whoop" fill="#16a34a" name="WHOOP" radius={[4,4,0,0]} barSize={14} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </section>
   );
