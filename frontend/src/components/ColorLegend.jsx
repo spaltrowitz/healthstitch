@@ -10,7 +10,7 @@ export default function ColorLegend() {
         <span style={{ width: 8, height: 8, borderRadius: 2, background: '#2563eb' }} /> Apple Watch
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#16a34a' }} /> WHOOP
+        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#7c3aed' }} /> WHOOP
       </span>
       <span style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '0.75rem', fontWeight: 600, color: '#334155' }}>Status:</span>
       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
