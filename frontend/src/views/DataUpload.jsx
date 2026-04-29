@@ -88,7 +88,7 @@ function UploadZone({ title, icon, color, description, instructions, accept, end
 
       {result && (
         <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10 }}>
-          <strong style={{ color: '#7c3aed' }}>✓ Import complete</strong>
+          <strong style={{ color: '#e97319' }}>✓ Import complete</strong>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
             {result.metrics != null && result.metrics > 0 && (
               <span>📊 <strong>{result.metrics.toLocaleString()}</strong> metrics</span>
@@ -150,7 +150,7 @@ export default function DataUpload({ token }) {
         <UploadZone
           title="WHOOP"
           icon="⌚"
-          color="#7c3aed"
+          color="#e97319"
           description="Upload your WHOOP data export (ZIP or individual CSV files)."
           accept=".zip,.csv"
           endpoint="/upload/whoop"

@@ -22,7 +22,7 @@ function daysAgo(days) {
 
 function sourceBadge(source) {
   if (source === 'apple_watch') return <span style={{ background: '#dbeafe', color: '#2563eb', padding: '0.1rem 0.4rem', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600 }}>⌚ Apple</span>;
-  if (source === 'whoop') return <span style={{ background: '#dcfce7', color: '#7c3aed', padding: '0.1rem 0.4rem', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600 }}>⌚ WHOOP</span>;
+  if (source === 'whoop') return <span style={{ background: '#dcfce7', color: '#e97319', padding: '0.1rem 0.4rem', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600 }}>⌚ WHOOP</span>;
   return <span>{source}</span>;
 }
 

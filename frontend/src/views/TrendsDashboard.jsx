@@ -87,12 +87,49 @@ export default function TrendsDashboard({ token }) {
   const hrvRange = useMemo(() => calcRange(hrvData, 'whoop_hrv_rmssd', 'apple_watch_hrv_sdnn'), [hrvData]);
   const rhrRange = useMemo(() => calcRange(restingData, 'whoop_rhr', 'apple_watch_rhr'), [restingData]);
 
+  // 7-day summaries
+  function summarize(chartData, key1, key2, label, unit, lowerIsBetter) {
+    if (!chartData || chartData.length < 2) return null;
+    const vals = chartData.flatMap(d => [d[key1], d[key2]].filter(Boolean));
+    if (vals.length < 2) return null;
+    const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const firstHalf = vals.slice(0, Math.ceil(vals.length / 2));
+    const secondHalf = vals.slice(Math.floor(vals.length / 2));
+    const pct = firstHalf.reduce((s,v)=>s+v,0)/firstHalf.length;
+    const pct2 = secondHalf.reduce((s,v)=>s+v,0)/secondHalf.length;
+    const change = pct > 0 ? Math.round(((pct2 - pct) / pct) * 100) : 0;
+    const dir = change > 5 ? 'up' : change < -5 ? 'down' : 'stable';
+    const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+    const dirText = dir === 'stable' ? 'Stable' : `${dir === 'up' ? 'Up' : 'Down'} ${Math.abs(change)}%`;
+    const goodUp = !lowerIsBetter;
+    const color = dir === 'stable' ? '#64748b' : (dir === 'up') === goodUp ? '#16a34a' : '#ef4444';
+    return { label, text: `${arrow} ${dirText} · Avg ${(Math.round(avg * 10) / 10)}${unit}`, color };
+  }
+
+  const summaries = [
+    summarize(hrvData, 'apple_watch_hrv_sdnn', 'whoop_hrv_rmssd', 'HRV', 'ms', false),
+    summarize(restingData, 'apple_watch_rhr', 'whoop_rhr', 'Resting HR', ' bpm', true),
+    summarize(sleepData, 'apple_watch_sleep', 'whoop_sleep', 'Sleep', 'h', false)
+  ].filter(Boolean);
+
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Loading trends...</p>;
 
   return (
     <section>
       <h2>Trends</h2>
+
+      {summaries.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          {summaries.map((s, i) => (
+            <div key={i} style={{ flex: 1, minWidth: 160, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '0.5rem 0.75rem' }}>
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: s.color }}>{s.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="controls-inline">
         <div className="selector-row">
           <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>View</label>
@@ -114,7 +151,7 @@ export default function TrendsDashboard({ token }) {
               <AreaChart data={hrvData}>
                 <defs>
                   <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15}/><stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#e97319" stopOpacity={0.15}/><stop offset="95%" stopColor="#e97319" stopOpacity={0}/></linearGradient>
                 </defs>
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis {...AXIS} width={35} domain={[hrvRange ? hrvRange.low - 10 : 'dataMin - 10', 'dataMax + 10']} />
@@ -122,7 +159,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Area type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" fill="url(#gA)" strokeWidth={2.5} dot={false} name="Apple Watch" />
-                <Area type="monotone" dataKey="whoop_hrv_rmssd" stroke="#7c3aed" fill="url(#gW)" strokeWidth={2.5} dot={false} name="WHOOP" />
+                <Area type="monotone" dataKey="whoop_hrv_rmssd" stroke="#e97319" fill="url(#gW)" strokeWidth={2.5} dot={false} name="WHOOP" />
               </AreaChart>
             </ResponsiveContainer>
           </>
@@ -136,7 +173,7 @@ export default function TrendsDashboard({ token }) {
               <AreaChart data={restingData}>
                 <defs>
                   <linearGradient id="gAR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.12}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="gWR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#7c3aed" stopOpacity={0.12}/><stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="gWR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#e97319" stopOpacity={0.12}/><stop offset="95%" stopColor="#e97319" stopOpacity={0}/></linearGradient>
                 </defs>
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis {...AXIS} width={35} domain={[rhrRange ? rhrRange.low - 5 : 'dataMin - 5', 'dataMax + 5']} />
@@ -144,7 +181,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Area type="monotone" dataKey="apple_watch_rhr" stroke="#2563eb" fill="url(#gAR)" strokeWidth={2.5} dot={false} name="Apple Watch" />
-                <Area type="monotone" dataKey="whoop_rhr" stroke="#7c3aed" fill="url(#gWR)" strokeWidth={2.5} dot={false} name="WHOOP" />
+                <Area type="monotone" dataKey="whoop_rhr" stroke="#e97319" fill="url(#gWR)" strokeWidth={2.5} dot={false} name="WHOOP" />
               </AreaChart>
             </ResponsiveContainer>
           </>
@@ -161,7 +198,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} formatter={(v) => `${v}h`} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple" radius={[6,6,0,0]} opacity={0.8} />
-                <Bar dataKey="whoop_sleep" fill="#7c3aed" name="WHOOP" radius={[6,6,0,0]} opacity={0.8} />
+                <Bar dataKey="whoop_sleep" fill="#e97319" name="WHOOP" radius={[6,6,0,0]} opacity={0.8} />
                 <Line type="monotone" dataKey="whoop_need" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Sleep need" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -199,7 +236,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} formatter={(v) => typeof v === 'number' ? v.toFixed(2) : v} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar yAxisId="cal" dataKey="active_cal" fill="#2563eb" name="Apple cal" radius={[6,6,0,0]} opacity={0.5} />
-                <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />
+                <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#e97319" fill="#e97319" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />
               </ComposedChart>
             </ResponsiveContainer>
           </>
@@ -237,7 +274,7 @@ export default function TrendsDashboard({ token }) {
                     <Tooltip {...TOOLTIP} />
                     <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
                     <Line type="monotone" dataKey="apple" stroke="#2563eb" dot={false} strokeWidth={2} name="Apple Watch" />
-                    <Line type="monotone" dataKey="whoop" stroke="#7c3aed" dot={false} strokeWidth={2} name="WHOOP" />
+                    <Line type="monotone" dataKey="whoop" stroke="#e97319" dot={false} strokeWidth={2} name="WHOOP" />
                   </LineChart>
                 </ResponsiveContainer>
               </>
