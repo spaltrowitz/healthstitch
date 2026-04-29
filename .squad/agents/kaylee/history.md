@@ -17,3 +17,9 @@
 - **Workout Log**: Sport filter uses pill/chip buttons dynamically derived from workout data. Empty fields render blank instead of "--". Charts in 2-col grid.
 - **Global**: Emoji icons in tab labels. All loading states are skeleton cards. Consistent shadow/radius/hover treatment.
 - **Key files**: `styles.css` (design tokens), all 4 view components, `App.jsx` (tab labels).
+
+### 2026-04-29 — Cross-Team Updates
+
+📌 **Team update (2026-04-29T23:04:00Z):** Book established HealthStitch brand, warm copy voice, and task-oriented tab labels ("Today's Readiness", "Trends", "Apple vs WHOOP", "Workouts"). Update UI copy to reflect new voice and naming conventions. — Book
+
+📌 **Team update (2026-04-29T23:04:00Z):** River's data layer review found critical HRV metric mismatch (WHOOP RMSSD vs Apple SDNN) affecting morning check-in deltas. Will need UI handling for metric clarity and potential baseline gaps for WHOOP-only users. — River

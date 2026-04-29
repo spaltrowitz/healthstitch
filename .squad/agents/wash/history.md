@@ -35,3 +35,9 @@
 - WHOOP = backend-pull model (server fetches from WHOOP API)
 - Apple Watch = iOS-push model (iOS app pushes to our backend)
 - These are fundamentally different and both need separate continuous sync strategies
+
+### 2026-04-29 — Cross-Team Updates
+
+📌 **Team update (2026-04-29T23:04:00Z):** River's data layer review identified critical HRV metric mismatch (WHOOP RMSSD ≠ Apple SDNN). Backend HRV comparison logic needs fixing. Also: baselines computed only for Apple Watch; WHOOP-only users get null deltas. Will affect sync implementation priorities. — River
+
+📌 **Team update (2026-04-29T23:04:00Z):** Scoped phased continuous sync: Phase 1 (WHOOP scheduled polling, 1–2 days) highest ROI; Phase 2 (Apple Watch background delivery, 3–4 days) requires physical device testing. Data freshness improves from manual sync to ~30–60 min staleness. — Wash
