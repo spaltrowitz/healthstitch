@@ -27,7 +27,7 @@ function GaugeRing({ value, max, color, size = 120, label, sublabel, tooltip, ra
         </div>
       </div>
       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: 2, cursor: tooltip ? 'help' : 'default', borderBottom: tooltip ? '1px dotted #cbd5e1' : 'none', display: 'inline-block' }}>{label}</div>
-      {source && <div style={{ fontSize: '0.6rem', color: source === 'WHOOP' ? '#16a34a' : '#2563eb', fontWeight: 600 }}>{source}</div>}
+      {source && <div style={{ fontSize: '0.6rem', color: source === 'WHOOP' ? '#7c3aed' : '#2563eb', fontWeight: 600 }}>{source}</div>}
       {rangeLabel && <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{rangeLabel}</div>}
       {sublabel && !source && <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{sublabel}</div>}
     </div>
@@ -91,7 +91,7 @@ function SleepDonut({ apple, whoop, size = 140 }) {
               <Tooltip formatter={(v) => `${Math.floor(v/60)}h ${v%60}m`} />
             </PieChart>
           </ResponsiveContainer>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#16a34a', marginTop: -4 }}>⌚ WHOOP {whoop?.total_hours}h</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#7c3aed', marginTop: -4 }}>⌚ WHOOP {whoop?.total_hours}h</div>
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
@@ -222,8 +222,8 @@ export default function DailyBriefing({ token }) {
   function trendColor(t, metric) {
     if (!t || t.direction === 'stable') return '#64748b';
     const goodUp = metric !== 'Resting HR'; // HRV up = good, RHR up = bad
-    if (t.direction === 'up') return goodUp ? '#16a34a' : '#ef4444';
-    return goodUp ? '#ef4444' : '#16a34a';
+    if (t.direction === 'up') return goodUp ? '#7c3aed' : '#ef4444';
+    return goodUp ? '#ef4444' : '#7c3aed';
   }
 
   function trendText(t) {
@@ -249,7 +249,7 @@ export default function DailyBriefing({ token }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
             style={{ border: 'none', fontSize: '1rem', fontWeight: 700, textAlign: 'center', background: 'transparent', cursor: 'pointer' }} />
-          {isToday && <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600 }}>Today</div>}
+          {isToday && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 600 }}>Today</div>}
         </div>
         <button onClick={() => shiftDate(1)} disabled={isToday}
           style={{ padding: '0.3rem 0.6rem', fontSize: '1rem', opacity: isToday ? 0.3 : 1 }}>→</button>
@@ -293,35 +293,42 @@ export default function DailyBriefing({ token }) {
         </div>
       </div>
 
-      {/* Key factors — color-coded cards */}
+      {/* Key factors — comparison table */}
       {scores.factors?.length > 0 && (
-        <div style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.8rem' }}>WHAT'S DRIVING YOUR SCORES</h3>
+        <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem' }}>
+          <h3 style={{ margin: '0 0 0.35rem', fontSize: '0.8rem' }}>WHAT'S DRIVING YOUR SCORES</h3>
           {scores.factor_summary && (
-            <p style={{ fontSize: '0.8rem', color: '#475569', margin: '0 0 0.65rem', lineHeight: 1.5 }}>{scores.factor_summary}</p>
+            <p style={{ fontSize: '0.75rem', color: '#475569', margin: '0 0 0.5rem', lineHeight: 1.4 }}>{scores.factor_summary}</p>
           )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {scores.factors.map((f, i) => {
-              const bgColor = f.impact === 'high' ? '#fef2f2' : '#fff';
-              const borderColor = f.impact === 'high' ? '#fecaca' : '#e2e8f0';
-              const dotColor = f.impact === 'high' ? '#ef4444' : f.impact === 'medium' ? '#f59e0b' : '#22c55e';
-              return (
-                <div key={i} style={{ padding: '0.6rem 0.85rem', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                      <strong style={{ fontSize: '0.82rem' }}>{f.metric}</strong>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.82rem' }}>
-                      {f.whoop_value && <span style={{ color: '#16a34a', fontWeight: 600 }}>{f.whoop_value}</span>}
-                      {f.apple_value && <span style={{ color: '#2563eb', fontWeight: 600 }}>{f.apple_value}</span>}
-                    </div>
-                  </div>
-                  {f.avg_7d && <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginLeft: '1.1rem' }}>7d avg: {f.avg_7d}</span>}
-                  <p style={{ fontSize: '0.72rem', color: '#64748b', margin: '0.2rem 0 0 1.1rem', lineHeight: 1.3 }}>{f.explanation}</p>
-                </div>
-              );
-            })}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: '0.8rem' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', width: '30%' }}>Metric</th>
+                  <th style={{ textAlign: 'center', color: '#7c3aed' }}>WHOOP</th>
+                  <th style={{ textAlign: 'center', color: '#2563eb' }}>Apple</th>
+                  <th style={{ textAlign: 'center' }}>7d Avg</th>
+                  <th style={{ textAlign: 'center', width: '15%' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scores.factors.map((f, i) => {
+                  const dotColor = f.impact === 'high' ? '#ef4444' : f.impact === 'medium' ? '#f59e0b' : '#22c55e';
+                  const rowBg = f.impact === 'high' ? '#fef2f2' : 'transparent';
+                  return (
+                    <tr key={i} style={{ background: rowBg }} title={f.explanation}>
+                      <td style={{ fontWeight: 500 }}>{f.metric}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#7c3aed' }}>{f.whoop_value || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#2563eb' }}>{f.apple_value || '—'}</td>
+                      <td style={{ textAlign: 'center', color: '#94a3b8' }}>{f.avg_7d || '—'}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, display: 'inline-block' }} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -339,7 +346,7 @@ export default function DailyBriefing({ token }) {
                   Sleep need: <strong>{whoop.need_hours}h</strong> ⓘ
                 </span>
                 {whoop.total_hours > whoop.need_hours
-                  ? <span style={{ color: '#16a34a', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
+                  ? <span style={{ color: '#7c3aed', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
                   : <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>⚠ {(whoop.need_hours - whoop.total_hours).toFixed(1)}h short</span>
                 }
               </div>
@@ -408,11 +415,9 @@ export default function DailyBriefing({ token }) {
         const attention = all.filter(i => i.status === 'red' || i.status === 'yellow');
         const normal = all.filter(i => i.status === 'green' || !i.status);
         if (attention.length === 0 && normal.length > 0) return (
-          <div className="card" style={{ marginBottom: '1rem', textAlign: 'center' }}>
-            <div style={{ fontSize: '1.3rem', marginBottom: '0.2rem' }}>✓</div>
-            <strong style={{ color: '#166534', fontSize: '0.85rem' }}>All insights normal</strong>
-            <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '0.2rem 0 0' }}>{normal.length} metrics within expected range</p>
-          </div>
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', margin: '0.5rem 0 1rem' }}>
+            No abnormal readings detected. Issues will appear here when they need your attention.
+          </p>
         );
         return (
           <div style={{ marginBottom: '1rem' }}>

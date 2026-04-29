@@ -114,7 +114,7 @@ export default function TrendsDashboard({ token }) {
               <AreaChart data={hrvData}>
                 <defs>
                   <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#16a34a" stopOpacity={0.15}/><stop offset="95%" stopColor="#16a34a" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="gW" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15}/><stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/></linearGradient>
                 </defs>
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis {...AXIS} width={35} domain={[hrvRange ? hrvRange.low - 10 : 'dataMin - 10', 'dataMax + 10']} />
@@ -122,7 +122,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Area type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" fill="url(#gA)" strokeWidth={2.5} dot={false} name="Apple Watch" />
-                <Area type="monotone" dataKey="whoop_hrv_rmssd" stroke="#16a34a" fill="url(#gW)" strokeWidth={2.5} dot={false} name="WHOOP" />
+                <Area type="monotone" dataKey="whoop_hrv_rmssd" stroke="#7c3aed" fill="url(#gW)" strokeWidth={2.5} dot={false} name="WHOOP" />
               </AreaChart>
             </ResponsiveContainer>
           </>
@@ -136,7 +136,7 @@ export default function TrendsDashboard({ token }) {
               <AreaChart data={restingData}>
                 <defs>
                   <linearGradient id="gAR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.12}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="gWR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#16a34a" stopOpacity={0.12}/><stop offset="95%" stopColor="#16a34a" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="gWR" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#7c3aed" stopOpacity={0.12}/><stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/></linearGradient>
                 </defs>
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis {...AXIS} width={35} domain={[rhrRange ? rhrRange.low - 5 : 'dataMin - 5', 'dataMax + 5']} />
@@ -144,7 +144,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Area type="monotone" dataKey="apple_watch_rhr" stroke="#2563eb" fill="url(#gAR)" strokeWidth={2.5} dot={false} name="Apple Watch" />
-                <Area type="monotone" dataKey="whoop_rhr" stroke="#16a34a" fill="url(#gWR)" strokeWidth={2.5} dot={false} name="WHOOP" />
+                <Area type="monotone" dataKey="whoop_rhr" stroke="#7c3aed" fill="url(#gWR)" strokeWidth={2.5} dot={false} name="WHOOP" />
               </AreaChart>
             </ResponsiveContainer>
           </>
@@ -161,7 +161,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} formatter={(v) => `${v}h`} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple" radius={[6,6,0,0]} opacity={0.8} />
-                <Bar dataKey="whoop_sleep" fill="#16a34a" name="WHOOP" radius={[6,6,0,0]} opacity={0.8} />
+                <Bar dataKey="whoop_sleep" fill="#7c3aed" name="WHOOP" radius={[6,6,0,0]} opacity={0.8} />
                 <Line type="monotone" dataKey="whoop_need" stroke="#f59e0b" strokeWidth={2} strokeDasharray="6 3" dot={false} name="Sleep need" />
               </ComposedChart>
             </ResponsiveContainer>
@@ -199,7 +199,7 @@ export default function TrendsDashboard({ token }) {
                 <Tooltip {...TOOLTIP} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar yAxisId="cal" dataKey="active_cal" fill="#2563eb" name="Apple cal" radius={[6,6,0,0]} opacity={0.5} />
-                <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#16a34a" fill="#16a34a" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />
+                <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />
               </ComposedChart>
             </ResponsiveContainer>
           </>
@@ -237,7 +237,7 @@ export default function TrendsDashboard({ token }) {
                     <Tooltip {...TOOLTIP} />
                     <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
                     <Line type="monotone" dataKey="apple" stroke="#2563eb" dot={false} strokeWidth={2} name="Apple Watch" />
-                    <Line type="monotone" dataKey="whoop" stroke="#16a34a" dot={false} strokeWidth={2} name="WHOOP" />
+                    <Line type="monotone" dataKey="whoop" stroke="#7c3aed" dot={false} strokeWidth={2} name="WHOOP" />
                   </LineChart>
                 </ResponsiveContainer>
               </>
