@@ -109,7 +109,7 @@ export default function TrendsDashboard({ token }) {
         {metric === 'hrv' && (
           <>
             <h3>Heart Rate Variability</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.15rem 0 0.5rem' }}>Higher = better recovery. Shaded band = your normal range. Devices use different methods (Apple: SDNN, WHOOP: RMSSD) so values differ — trends matter more.</p>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.15rem 0 0.5rem' }}>Higher = better recovery. Shaded band = your normal range. Devices use different methods — compare trends, not numbers.</p>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={hrvData}>
                 <defs>
@@ -171,7 +171,7 @@ export default function TrendsDashboard({ token }) {
         {metric === 'stages' && (
           <>
             <h3>Sleep Stages</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.15rem 0 0.5rem' }}>WHOOP only. Deep repairs body, REM consolidates memory. Aim for 15-20% deep, 20-25% REM.</p>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '-0.15rem 0 0.5rem' }}>WHOOP only. Aim for 15-20% deep sleep and 20-25% REM.</p>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={sleepStageData}>
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />

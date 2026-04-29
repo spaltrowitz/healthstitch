@@ -118,7 +118,7 @@ export default function App() {
         ))}
       </nav>
 
-      <ColorLegend />
+      <ColorLegend showStatus={activeTab === 'briefing'} />
 
       {activeTab === 'briefing' && <DailyBriefing token={token} />}
       {activeTab === 'trends' && (
