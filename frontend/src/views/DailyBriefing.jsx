@@ -302,8 +302,8 @@ export default function DailyBriefing({ token }) {
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {scores.factors.map((f, i) => {
-              const bgColor = f.impact === 'high' ? '#fef2f2' : f.impact === 'medium' ? '#fefce8' : '#f0fdf4';
-              const borderColor = f.impact === 'high' ? '#fecaca' : f.impact === 'medium' ? '#fde68a' : '#bbf7d0';
+              const bgColor = f.impact === 'high' ? '#fef2f2' : '#fff';
+              const borderColor = f.impact === 'high' ? '#fecaca' : '#e2e8f0';
               const dotColor = f.impact === 'high' ? '#ef4444' : f.impact === 'medium' ? '#f59e0b' : '#22c55e';
               return (
                 <div key={i} style={{ padding: '0.6rem 0.85rem', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 10 }}>
@@ -401,6 +401,43 @@ export default function DailyBriefing({ token }) {
           </div>
         </div>
       )}
+
+      {/* Insights — only red/yellow, with collapsible green */}
+      {insights?.insights?.length > 0 && (() => {
+        const all = insights.insights;
+        const attention = all.filter(i => i.status === 'red' || i.status === 'yellow');
+        const normal = all.filter(i => i.status === 'green' || !i.status);
+        if (attention.length === 0 && normal.length > 0) return (
+          <div className="card" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.3rem', marginBottom: '0.2rem' }}>✓</div>
+            <strong style={{ color: '#166534', fontSize: '0.85rem' }}>All insights normal</strong>
+            <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '0.2rem 0 0' }}>{normal.length} metrics within expected range</p>
+          </div>
+        );
+        return (
+          <div style={{ marginBottom: '1rem' }}>
+            {attention.length > 0 && (
+              <>
+                <h3 style={{ fontSize: '0.8rem', marginBottom: '0.4rem' }}>INSIGHTS</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {attention.map((ins, i) => {
+                    const st = ins.status === 'red' ? { bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' } : { bg: '#fefce8', border: '#fde68a', dot: '#f59e0b' };
+                    return (
+                      <div key={i} style={{ padding: '0.55rem 0.75rem', background: st.bg, border: `1px solid ${st.border}`, borderRadius: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
+                          <strong style={{ fontSize: '0.82rem' }}>{ins.title}</strong>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: '#475569', margin: '0.2rem 0 0 1rem', lineHeight: 1.4 }}>{ins.body}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </section>
   );
 }
