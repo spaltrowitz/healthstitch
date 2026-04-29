@@ -15,7 +15,7 @@ const METRICS = [
   { metric: 'HRV', listenTo: 'WHOOP for recovery', gap: 'Different scales', conf: 'medium',
     detail: 'Apple uses SDNN (overall variability), WHOOP uses RMSSD (beat-to-beat, better for recovery). Never compare absolute numbers — compare whether both trend the same direction.' },
   { metric: 'Sleep Stages', listenTo: 'Trends only', gap: '20-40 min/stage', conf: 'low',
-    detail: 'Wrist-based stage detection is 60-70% accurate vs clinical polysomnography for both devices. Look at 7-day averages, not single nights.' },
+    detail: 'Wrist-based stage detection is 60-70% accurate vs clinical polysomnography for all devices. Look at 7-day averages, not single nights.' },
   { metric: 'Workout HR', listenTo: 'Apple for max, WHOOP for avg', gap: '3-8 bpm', conf: 'medium',
     detail: 'Apple catches HR peaks better. WHOOP gives more stable averages. Both can be noisy during strength training due to wrist movement.' },
   { metric: 'Calories', listenTo: 'Relative only', gap: '~2x', conf: 'low',
@@ -34,9 +34,17 @@ export default function DeviceReference() {
   return (
     <section>
       <h2>Device Reference</h2>
-      <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+      <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.75rem' }}>
         How Apple Watch and WHOOP measure differently. Tap a row for details.
       </p>
+
+      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '0.65rem 0.85rem', marginBottom: '1rem', fontSize: '0.8rem', lineHeight: 1.5 }}>
+        <strong>How to read Confidence:</strong> This indicates how reliably a metric can be compared across devices.
+        <strong>90%</strong> = devices measure similarly, small differences are noise.
+        <strong>70%</strong> = useful comparison but different methods — focus on trends.
+        <strong>50%</strong> = rough comparison only, don't rely on individual readings.
+        <strong>—</strong> = only one device tracks this metric.
+      </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table>

@@ -377,7 +377,7 @@ export default function DailyBriefing({ token }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid #f1f5f9' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 500 }}
                   title="Heart Rate Variability: daily average from your device. Apple measures throughout the day, WHOOP measures during sleep.">
-                  HRV <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(both devices)</span>
+                  HRV <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(all devices)</span>
                 </span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: trendColor(hrvTrend, 'HRV') }}>
                   {trendText(hrvTrend)}
@@ -388,7 +388,7 @@ export default function DailyBriefing({ token }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid #f1f5f9' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 500 }}
                   title="Resting Heart Rate: your lowest HR during sleep. Lower is generally better.">
-                  Resting HR <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(both devices)</span>
+                  Resting HR <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(all devices)</span>
                 </span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: trendColor(rhrTrend, 'Resting HR') }}>
                   {trendText(rhrTrend)}
@@ -398,7 +398,7 @@ export default function DailyBriefing({ token }) {
             {sleepTrend && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                  Sleep <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(both devices)</span>
+                  Sleep <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>(all devices)</span>
                 </span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: trendColor(sleepTrend, 'Sleep') }}>
                   {trendText(sleepTrend)}
