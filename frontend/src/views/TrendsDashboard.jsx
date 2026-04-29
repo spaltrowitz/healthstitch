@@ -95,7 +95,7 @@ export default function TrendsDashboard({ token }) {
       <h2>Trends</h2>
       <div className="controls-inline">
         <div className="selector-row">
-          <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Metric</label>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>View</label>
           <select value={metric} onChange={(e) => setMetric(e.target.value)}>
             {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
@@ -196,7 +196,7 @@ export default function TrendsDashboard({ token }) {
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis yAxisId="strain" {...AXIS} width={30} domain={[0, 21]} />
                 <YAxis yAxisId="cal" orientation="right" {...AXIS} width={40} />
-                <Tooltip {...TOOLTIP} />
+                <Tooltip {...TOOLTIP} formatter={(v) => typeof v === 'number' ? v.toFixed(2) : v} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar yAxisId="cal" dataKey="active_cal" fill="#2563eb" name="Apple cal" radius={[6,6,0,0]} opacity={0.5} />
                 <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />

@@ -55,6 +55,7 @@ export default function WorkoutLog({ token }) {
   const [to, setTo] = useState(today());
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [loadView, setLoadView] = useState('weekly');
 
   useEffect(() => {
     apiRequest(`/dashboard/workouts?source=${source}&sport=${sport}&from=${from}&to=${to}`, { token })
@@ -96,37 +97,37 @@ export default function WorkoutLog({ token }) {
         </div>
       </div>
 
-      <CollapsibleSection
-        title="Weekly Training Load"
-        subtitle="Based on WHOOP strain. Apple Watch workouts without strain use calories as a proxy."
-        defaultOpen={true}
-      >
+      <div className="card" style={{ marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <h3 style={{ margin: 0 }}>Training Load</h3>
+          <div style={{ display: 'flex', gap: '0.25rem', background: '#e2e8f0', borderRadius: 8, padding: '0.15rem' }}>
+            <button onClick={() => setLoadView('weekly')}
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: 6, border: 'none',
+                background: loadView === 'weekly' ? '#fff' : 'transparent',
+                fontWeight: loadView === 'weekly' ? 600 : 400,
+                boxShadow: loadView === 'weekly' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                cursor: 'pointer' }}>Weekly</button>
+            <button onClick={() => setLoadView('monthly')}
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: 6, border: 'none',
+                background: loadView === 'monthly' ? '#fff' : 'transparent',
+                fontWeight: loadView === 'monthly' ? 600 : 400,
+                boxShadow: loadView === 'monthly' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                cursor: 'pointer' }}>Monthly</button>
+          </div>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0 0 0.5rem' }}>
+          Based on WHOOP strain. Apple Watch workouts without strain use calories as a proxy.
+        </p>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.weekly_load}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="period" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="load" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <BarChart data={loadView === 'weekly' ? data.weekly_load : data.monthly_load}>
+            <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              formatter={(v) => typeof v === 'number' ? v.toFixed(2) : v} />
+            <Bar dataKey="load" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </CollapsibleSection>
-
-      <CollapsibleSection
-        title="Monthly Training Load"
-        subtitle="Cumulative load per month from all sources."
-        defaultOpen={true}
-      >
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.monthly_load}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="period" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="load" fill="#7c3aed" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </CollapsibleSection>
+      </div>
 
       <CollapsibleSection
         title={`Workout History (${data.workouts.length})`}
