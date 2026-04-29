@@ -100,7 +100,7 @@ export default function DeviceComparison({ token }) {
           <span className="stat-icon">📊</span>
           <div>
             <div className="stat-value">
-              {data.average_delta == null ? '--' : Math.abs(data.average_delta).toFixed(2)}
+              {data.average_delta == null ? '—' : Math.abs(data.average_delta).toFixed(2)}
               <span style={{ fontSize: '0.85rem', fontWeight: 400 }}> {unit}</span>
             </div>
             <div className="stat-label">Average difference</div>

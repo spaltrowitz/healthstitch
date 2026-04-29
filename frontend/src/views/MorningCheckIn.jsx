@@ -60,7 +60,7 @@ export default function MorningCheckIn({ token }) {
 
       <article className="card readiness-hero">
         <div className="readiness-gauge" style={{ color: gaugeColor(score) }}>
-          <span className="score">{score ?? '--'}</span>
+          <span className="score">{score ?? '—'}</span>
           <span className="label">Recovery</span>
         </div>
         <span className={`readiness-zone ${zoneColor(data.recovery.zone)}`}>
@@ -72,7 +72,7 @@ export default function MorningCheckIn({ token }) {
         <article className="card">
           <h3>Heart Rate Variability</h3>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {data.hrv.value ?? '--'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
+            {data.hrv.value ?? '—'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
           </p>
           <span className={`delta-badge ${deltaColor(data.hrv.delta_pct_vs_baseline)}`}>
             {data.hrv.delta_pct_vs_baseline != null
@@ -84,7 +84,7 @@ export default function MorningCheckIn({ token }) {
         <article className="card">
           <h3>Resting Heart Rate</h3>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {data.resting_hr.value ?? '--'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
+            {data.resting_hr.value ?? '—'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
           </p>
           <span className={`delta-badge ${deltaColor(data.resting_hr.delta_pct_vs_baseline)}`}>
             {data.resting_hr.delta_pct_vs_baseline != null
@@ -96,10 +96,10 @@ export default function MorningCheckIn({ token }) {
         <article className="card">
           <h3>Last Night's Sleep</h3>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {hours(data.sleep.actual_ms) ?? '--'}h
+            {hours(data.sleep.actual_ms) ?? '—'}h
           </p>
           <p style={{ margin: '0.5rem 0 0.25rem', color: '#64748b', fontSize: '0.85rem' }}>
-            Need: {hours(data.sleep.whoop_sleep_need_ms) ?? '--'}h &middot; Avg: {hours(data.sleep.apple_long_term_avg_ms) ?? '--'}h
+            Need: {hours(data.sleep.whoop_sleep_need_ms) ?? '—'}h &middot; Avg: {hours(data.sleep.apple_long_term_avg_ms) ?? '—'}h
           </p>
           {data.sleep.whoop_sleep_performance_pct != null && (
             <span className={`delta-badge ${data.sleep.whoop_sleep_performance_pct >= 85 ? 'good' : data.sleep.whoop_sleep_performance_pct >= 70 ? 'warn' : 'bad'}`}>
@@ -111,12 +111,12 @@ export default function MorningCheckIn({ token }) {
         <article className="card">
           <h3>Yesterday's Training</h3>
           <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {data.training_yesterday.whoop_strain != null ? Number(data.training_yesterday.whoop_strain).toFixed(1) : '--'}{' '}
+            {data.training_yesterday.whoop_strain != null ? Number(data.training_yesterday.whoop_strain).toFixed(1) : '—'}{' '}
             <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>strain</span>
           </p>
           {data.training_yesterday.apple_workout_type && (
             <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.85rem' }}>
-              {data.training_yesterday.apple_workout_type} &middot; {hours(data.training_yesterday.apple_workout_duration_ms) ?? '--'}h
+              {data.training_yesterday.apple_workout_type} &middot; {hours(data.training_yesterday.apple_workout_duration_ms) ?? '—'}h
             </p>
           )}
         </article>
