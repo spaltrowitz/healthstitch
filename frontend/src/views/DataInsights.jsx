@@ -90,9 +90,15 @@ export default function DataInsights({ token }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <h2 style={{ margin: 0 }}>Insights</h2>
         {changed.length > 0 && (
-          <span style={{ background: '#2563eb', color: '#fff', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 10 }}>
-            {changed.length} changed
-          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ background: '#2563eb', color: '#fff', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 10 }}>
+              {changed.length} changed
+            </span>
+            <button onClick={() => { all.forEach(i => markSeen(i.title, i.body)); forceUpdate(n => n + 1); }}
+              style={{ fontSize: '0.72rem', color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              Mark all read
+            </button>
+          </div>
         )}
       </div>
       {data.overlap_period && (
