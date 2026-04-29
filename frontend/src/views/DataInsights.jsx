@@ -8,14 +8,16 @@ const STATUS_STYLES = {
 };
 
 function getSeenInsights() {
-  try { return JSON.parse(localStorage.getItem('hs_seen_insights') || '[]'); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem('hs_seen_insights') || '{}'); } catch { return {}; }
 }
-function markSeen(title) {
+function markSeen(title, body) {
   const seen = getSeenInsights();
-  if (!seen.includes(title)) {
-    seen.push(title);
-    localStorage.setItem('hs_seen_insights', JSON.stringify(seen));
-  }
+  seen[title] = body;
+  localStorage.setItem('hs_seen_insights', JSON.stringify(seen));
+}
+function isNewInsight(title, body) {
+  const seen = getSeenInsights();
+  return seen[title] !== body;
 }
 
 function CompactInsight({ insight, isNew, onSeen }) {
@@ -24,28 +26,21 @@ function CompactInsight({ insight, isNew, onSeen }) {
 
   function handleClick() {
     setExpanded(!expanded);
-    if (isNew && onSeen) onSeen(insight.title);
+    if (isNew && onSeen) onSeen(insight.title, insight.body);
   }
 
   return (
-    <div
-      onClick={handleClick}
+    <div onClick={handleClick}
       style={{
-        padding: '0.65rem 0.85rem',
-        background: style.bg,
-        border: `1px solid ${style.border}`,
-        borderRadius: 10,
-        cursor: 'pointer',
-        transition: 'box-shadow 0.15s',
-        position: 'relative'
-      }}
-    >
+        padding: '0.65rem 0.85rem', background: style.bg, border: `1px solid ${style.border}`,
+        borderRadius: 10, cursor: 'pointer', position: 'relative'
+      }}>
       {isNew && (
         <span style={{
           position: 'absolute', top: -6, right: -6,
           background: '#2563eb', color: '#fff', fontSize: '0.6rem', fontWeight: 700,
           padding: '0.1rem 0.4rem', borderRadius: 8
-        }}>NEW</span>
+        }}>CHANGED</span>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -65,7 +60,8 @@ function CompactInsight({ insight, isNew, onSeen }) {
 export default function DataInsights({ token }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [seenList, setSeenList] = useState(getSeenInsights());
+  const [showAll, setShowAll] = useState(false);
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     apiRequest('/dashboard/insights', { token })
@@ -73,29 +69,29 @@ export default function DataInsights({ token }) {
       .catch((err) => setError(err.message));
   }, [token]);
 
-  function handleSeen(title) {
-    markSeen(title);
-    setSeenList(getSeenInsights());
+  function handleSeen(title, body) {
+    markSeen(title, body);
+    forceUpdate(n => n + 1);
   }
 
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Analyzing your data…</p>;
 
-  const categories = {
-    'Device Comparison': data.insights.filter(i => i.type === 'comparison' || i.type === 'correlation'),
-    'Patterns & Habits': data.insights.filter(i => i.type === 'pattern'),
-    'Status': data.insights.filter(i => i.type === 'info')
-  };
+  const all = data.insights || [];
+  const needsAttention = all.filter(i => i.status === 'red');
+  const worthNoting = all.filter(i => i.status === 'yellow');
+  const normal = all.filter(i => i.status === 'green' || !i.status);
+  const changed = all.filter(i => isNewInsight(i.title, i.body));
 
-  const newCount = data.insights.filter(i => !seenList.includes(i.title)).length;
+  const hasIssues = needsAttention.length > 0 || worthNoting.length > 0;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <h2 style={{ margin: 0 }}>Insights</h2>
-        {newCount > 0 && (
+        {changed.length > 0 && (
           <span style={{ background: '#2563eb', color: '#fff', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 10 }}>
-            {newCount} new
+            {changed.length} changed
           </span>
         )}
       </div>
@@ -105,30 +101,59 @@ export default function DataInsights({ token }) {
         </p>
       )}
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.7rem' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} /> Normal</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} /> Worth noting</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }} /> Needs attention</span>
-      </div>
+      {!hasIssues && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '1rem', marginBottom: '1rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>✓</div>
+          <strong style={{ color: '#166534' }}>Everything looks good</strong>
+          <p style={{ color: '#15803d', fontSize: '0.82rem', margin: '0.25rem 0 0' }}>
+            All metrics are within normal ranges. Your devices are well aligned.
+          </p>
+        </div>
+      )}
 
-      {Object.entries(categories).map(([category, items]) => items.length > 0 && (
-        <div key={category} style={{ marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.4rem' }}>{category.toUpperCase()}</h3>
+      {needsAttention.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.4rem', color: '#dc2626' }}>NEEDS ATTENTION</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {items.map((insight, i) => (
-              <CompactInsight
-                key={i}
-                insight={insight}
-                isNew={!seenList.includes(insight.title)}
-                onSeen={handleSeen}
-              />
+            {needsAttention.map((insight, i) => (
+              <CompactInsight key={i} insight={insight} isNew={isNewInsight(insight.title, insight.body)} onSeen={handleSeen} />
             ))}
           </div>
         </div>
-      ))}
+      )}
 
-      {data.insights.length === 0 && (
-        <p style={{ color: '#64748b' }}>No insights yet. Upload data from both devices.</p>
+      {worthNoting.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '0.8rem', marginBottom: '0.4rem', color: '#ca8a04' }}>WORTH NOTING</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {worthNoting.map((insight, i) => (
+              <CompactInsight key={i} insight={insight} isNew={isNewInsight(insight.title, insight.body)} onSeen={handleSeen} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {normal.length > 0 && (
+        <div style={{ marginBottom: '1rem' }}>
+          {hasIssues ? (
+            <button onClick={() => setShowAll(!showAll)}
+              style={{ fontSize: '0.8rem', color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+              {showAll ? '▼' : '▶'} {normal.length} metrics in normal range
+            </button>
+          ) : (
+            <button onClick={() => setShowAll(!showAll)}
+              style={{ fontSize: '0.8rem', color: '#64748b', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, marginTop: '0.5rem' }}>
+              {showAll ? '▼ Hide details' : '▶ See all details'}
+            </button>
+          )}
+          {showAll && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+              {normal.map((insight, i) => (
+                <CompactInsight key={i} insight={insight} isNew={isNewInsight(insight.title, insight.body)} onSeen={handleSeen} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

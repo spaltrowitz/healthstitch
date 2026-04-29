@@ -85,6 +85,11 @@ export default function DeviceReference() {
         Based on clinical studies comparing wrist-worn optical sensors to gold-standard measurements.
         Individual results vary based on device placement, skin tone, fitness level, and medications.
       </p>
+      <p style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.5 }}>
+        Confidence levels are calibrated for current-gen devices (Apple Watch Series 7+ / watchOS 11+, WHOOP 4.0).
+        Older hardware may have lower sensor accuracy. Software updates can also adjust algorithms — these ratings
+        will be updated as new research and device versions are released.
+      </p>
     </section>
   );
 }
