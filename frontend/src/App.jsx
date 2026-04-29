@@ -3,10 +3,10 @@ import { apiRequest } from './api/client';
 import DailyBriefing from './views/DailyBriefing';
 import TrendsDashboard from './views/TrendsDashboard';
 import WorkoutLog from './views/WorkoutLog';
-import DataInsights from './views/DataInsights';
 import DataUpload from './views/DataUpload';
 import DeviceReference from './views/DeviceReference';
 import RecoveryModeModal from './components/RecoveryModeModal';
+import ColorLegend from './components/ColorLegend';
 
 const TABS = [
   { id: 'briefing', label: 'Today' },
@@ -117,6 +117,8 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      <ColorLegend />
 
       {activeTab === 'briefing' && <DailyBriefing token={token} />}
       {activeTab === 'trends' && (
