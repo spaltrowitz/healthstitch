@@ -165,3 +165,8 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 - **Migrate SQLite → PostgreSQL** — Move from file-based SQLite to hosted Postgres (e.g., Supabase, RDS) for multi-device access, cloud deployment, concurrent users, and better scalability. Schema is already Postgres-compatible (`user_id` foreign keys, standard SQL types). Enables deploying the backend to any cloud host without disk persistence concerns.
 - **Device Value Analysis** — "Which device is worth keeping?" Compares what unique data each device provides, what overlaps, and whether a subscription device (WHOOP ~$30/mo, Oura ~$6/mo) adds enough value over free alternatives (Apple Watch). Factors: unique metrics only that device provides, accuracy comparison on shared metrics, actionable insights each device enables, cost per unique insight. Helps users decide which subscriptions to keep or cancel.
 - **AI Health Chat** — Conversational interface that can answer questions about your data across all devices. Unlike WHOOP's chatbot (WHOOP data only), HealthStitch AI sees all sources and can explain cross-device discrepancies, suggest optimizations, and provide personalized guidance based on your full health picture.
+
+---
+
+⌚ [Fund my next wearable obsession](https://spaltrowitz.github.io/#support)
+
