@@ -75,7 +75,7 @@ export default function WorkoutLog({ token }) {
         <div className="selector-row">
           <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Source</label>
           <select value={source} onChange={(e) => setSource(e.target.value)}>
-            <option value="both">Both devices</option>
+            <option value="both">All devices</option>
             <option value="apple_watch">⌚ Apple Watch</option>
             <option value="whoop">⌚ WHOOP</option>
           </select>
@@ -123,7 +123,7 @@ export default function WorkoutLog({ token }) {
             <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ fontSize: '0.8rem', borderRadius: 10, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-              formatter={(v) => typeof v === 'number' ? v.toFixed(2) : v} />
+              formatter={(v) => typeof v === 'number' ? v.toFixed(1) : v} />
             <Bar dataKey="load" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

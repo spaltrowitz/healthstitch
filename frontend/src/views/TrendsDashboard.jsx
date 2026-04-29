@@ -233,7 +233,7 @@ export default function TrendsDashboard({ token }) {
                 <XAxis dataKey="date" {...AXIS} tickFormatter={shortDate} />
                 <YAxis yAxisId="strain" {...AXIS} width={30} domain={[0, 21]} />
                 <YAxis yAxisId="cal" orientation="right" {...AXIS} width={40} />
-                <Tooltip {...TOOLTIP} formatter={(v) => typeof v === 'number' ? v.toFixed(2) : v} />
+                <Tooltip {...TOOLTIP} formatter={(v) => typeof v === 'number' ? v.toFixed(1) : v} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: '0.5rem' }} />
                 <Bar yAxisId="cal" dataKey="active_cal" fill="#2563eb" name="Apple cal" radius={[6,6,0,0]} opacity={0.5} />
                 <Area yAxisId="strain" type="monotone" dataKey="strain" stroke="#e97319" fill="#e97319" fillOpacity={0.1} strokeWidth={2.5} dot={false} name="WHOOP strain" />

@@ -662,8 +662,8 @@ router.get('/workouts', requireAuth, (req, res) => {
 
   return res.json({
     workouts,
-    weekly_load: Object.entries(weekly).map(([period, load]) => ({ period, load: Math.round(load * 100) / 100 })),
-    monthly_load: Object.entries(monthly).map(([period, load]) => ({ period, load: Math.round(load * 100) / 100 }))
+    weekly_load: Object.entries(weekly).map(([period, load]) => ({ period, load: Math.round(load * 10) / 10 })),
+    monthly_load: Object.entries(monthly).map(([period, load]) => ({ period, load: Math.round(load * 10) / 10 }))
   });
 });
 
