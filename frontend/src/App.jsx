@@ -10,8 +10,7 @@ import RecoveryModeModal from './components/RecoveryModeModal';
 
 const TABS = [
   { id: 'briefing', label: 'Today' },
-  { id: 'deep-dive', label: 'Deep Dive' },
-  { id: 'insights', label: 'Insights' },
+  { id: 'trends', label: 'Trends' },
   { id: 'reference', label: 'Reference' }
 ];
 
@@ -120,13 +119,12 @@ export default function App() {
       </nav>
 
       {activeTab === 'briefing' && <DailyBriefing token={token} />}
-      {activeTab === 'deep-dive' && (
+      {activeTab === 'trends' && (
         <>
           <TrendsDashboard token={token} />
           <WorkoutLog token={token} />
         </>
       )}
-      {activeTab === 'insights' && <DataInsights token={token} />}
       {activeTab === 'reference' && <DeviceReference />}
       {activeTab === 'settings' && (
         <section>
