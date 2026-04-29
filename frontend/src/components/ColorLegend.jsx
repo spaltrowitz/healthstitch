@@ -9,7 +9,7 @@ export default function ColorLegend({ showStatus = true }) {
         <span style={{ width: 8, height: 8, borderRadius: 2, background: '#2563eb' }} /> Apple Watch
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#7c3aed' }} /> WHOOP
+        <span style={{ width: 8, height: 8, borderRadius: 2, background: '#e97319' }} /> WHOOP
       </span>
       {showStatus && (
         <>

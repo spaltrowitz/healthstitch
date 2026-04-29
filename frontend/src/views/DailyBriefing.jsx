@@ -27,7 +27,7 @@ function GaugeRing({ value, max, color, size = 120, label, sublabel, tooltip, ra
         </div>
       </div>
       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#334155', marginTop: 2, cursor: tooltip ? 'help' : 'default', borderBottom: tooltip ? '1px dotted #cbd5e1' : 'none', display: 'inline-block' }}>{label}</div>
-      {source && <div style={{ fontSize: '0.6rem', color: source === 'WHOOP' ? '#7c3aed' : '#2563eb', fontWeight: 600 }}>{source}</div>}
+      {source && <div style={{ fontSize: '0.6rem', color: source === 'WHOOP' ? '#e97319' : '#2563eb', fontWeight: 600 }}>{source}</div>}
       {rangeLabel && <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{rangeLabel}</div>}
       {sublabel && !source && <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{sublabel}</div>}
     </div>
@@ -91,7 +91,7 @@ function SleepDonut({ apple, whoop, size = 140 }) {
               <Tooltip formatter={(v) => `${Math.floor(v/60)}h ${v%60}m`} />
             </PieChart>
           </ResponsiveContainer>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#7c3aed', marginTop: -4 }}>⌚ WHOOP {whoop?.total_hours}h</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e97319', marginTop: -4 }}>⌚ WHOOP {whoop?.total_hours}h</div>
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.25rem', fontSize: '0.7rem' }}>
@@ -222,8 +222,8 @@ export default function DailyBriefing({ token }) {
   function trendColor(t, metric) {
     if (!t || t.direction === 'stable') return '#64748b';
     const goodUp = metric !== 'Resting HR'; // HRV up = good, RHR up = bad
-    if (t.direction === 'up') return goodUp ? '#7c3aed' : '#ef4444';
-    return goodUp ? '#ef4444' : '#7c3aed';
+    if (t.direction === 'up') return goodUp ? '#e97319' : '#ef4444';
+    return goodUp ? '#ef4444' : '#e97319';
   }
 
   function trendText(t) {
@@ -249,7 +249,7 @@ export default function DailyBriefing({ token }) {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             max={new Date().toISOString().slice(0, 10)}
             style={{ border: 'none', fontSize: '1rem', fontWeight: 700, textAlign: 'center', background: 'transparent', cursor: 'pointer' }} />
-          {isToday && <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 600 }}>Today</div>}
+          {isToday && <div style={{ fontSize: '0.7rem', color: '#e97319', fontWeight: 600 }}>Today</div>}
         </div>
         <button onClick={() => shiftDate(1)} disabled={isToday}
           style={{ padding: '0.3rem 0.6rem', fontSize: '1rem', opacity: isToday ? 0.3 : 1 }}>→</button>
@@ -305,7 +305,7 @@ export default function DailyBriefing({ token }) {
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', width: '30%' }}>Metric</th>
-                  <th style={{ textAlign: 'center', color: '#7c3aed' }}>WHOOP</th>
+                  <th style={{ textAlign: 'center', color: '#e97319' }}>WHOOP</th>
                   <th style={{ textAlign: 'center', color: '#2563eb' }}>Apple</th>
                   <th style={{ textAlign: 'center' }}>7d Avg</th>
                   <th style={{ textAlign: 'center', width: '15%' }}>Status</th>
@@ -318,7 +318,7 @@ export default function DailyBriefing({ token }) {
                   return (
                     <tr key={i} style={{ background: rowBg }} title={f.explanation}>
                       <td style={{ fontWeight: 500 }}>{f.metric}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#7c3aed' }}>{f.whoop_value || '—'}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: '#e97319' }}>{f.whoop_value || '—'}</td>
                       <td style={{ textAlign: 'center', fontWeight: 600, color: '#2563eb' }}>{f.apple_value || '—'}</td>
                       <td style={{ textAlign: 'center', color: '#94a3b8' }}>{f.avg_7d || '—'}</td>
                       <td style={{ textAlign: 'center' }}>
@@ -342,11 +342,11 @@ export default function DailyBriefing({ token }) {
             <div style={{ textAlign: 'center', marginTop: '0.65rem' }}>
               <div style={{ fontSize: '0.82rem' }}>
                 <span title="WHOOP calculates sleep need from: your baseline sleep requirement + additional need from yesterday's strain + any accumulated sleep debt. Low strain days = lower sleep need."
-                  style={{ color: '#64748b', cursor: 'help', borderBottom: '1px dotted #cbd5e1' }}>
+                  style={{ color: '#64748b', cursor: 'default', borderBottom: '1px dotted #cbd5e1' }}>
                   Sleep need: <strong>{whoop.need_hours}h</strong> ⓘ
                 </span>
                 {whoop.total_hours > whoop.need_hours
-                  ? <span style={{ color: '#7c3aed', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
+                  ? <span style={{ color: '#e97319', marginLeft: '0.5rem' }}>✓ {(whoop.total_hours - whoop.need_hours).toFixed(1)}h surplus</span>
                   : <span style={{ color: '#f59e0b', marginLeft: '0.5rem' }}>⚠ {(whoop.need_hours - whoop.total_hours).toFixed(1)}h short</span>
                 }
               </div>
