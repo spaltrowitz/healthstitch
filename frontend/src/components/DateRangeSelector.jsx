@@ -3,11 +3,11 @@ export default function DateRangeSelector({ value, onChange }) {
 
   return (
     <div className="selector-row">
-      <label>Date range</label>
+      <label>Show</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {ranges.map((range) => (
           <option key={range} value={range}>
-            {range === 'all' ? 'All Time' : `${range} days`}
+            {range === 'all' ? 'All time' : `Last ${range} days`}
           </option>
         ))}
       </select>

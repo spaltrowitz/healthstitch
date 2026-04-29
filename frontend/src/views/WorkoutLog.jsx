@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -34,12 +34,26 @@ export default function WorkoutLog({ token }) {
       .catch((err) => setError(err.message));
   }, [source, sport, from, to, token]);
 
+  const sportTypes = useMemo(() => {
+    if (!data) return [];
+    const types = new Set(data.workouts.map((w) => w.sport_type).filter(Boolean));
+    return ['all', ...Array.from(types).sort()];
+  }, [data]);
+
   if (error) return <p className="error">{error}</p>;
-  if (!data) return <p>Loading workouts...</p>;
+  if (!data) return (
+    <section>
+      <h2>Your Workouts</h2>
+      <div className="charts-grid">
+        <div className="skeleton skeleton-card" style={{ height: 240 }} />
+        <div className="skeleton skeleton-card" style={{ height: 240 }} />
+      </div>
+    </section>
+  );
 
   return (
     <section>
-      <h2>Workout Log</h2>
+      <h2>Your Workouts</h2>
       <div className="controls-inline">
         <div className="selector-row">
           <label>Source</label>
@@ -48,10 +62,6 @@ export default function WorkoutLog({ token }) {
             <option value="apple_watch">Apple Watch</option>
             <option value="whoop">WHOOP</option>
           </select>
-        </div>
-        <div className="selector-row">
-          <label>Sport</label>
-          <input value={sport} onChange={(e) => setSport(e.target.value)} placeholder="all or exact sport" />
         </div>
         <div className="selector-row">
           <label>From</label>
@@ -63,60 +73,81 @@ export default function WorkoutLog({ token }) {
         </div>
       </div>
 
-      <div className="chart-card">
-        <h3>Weekly training load</h3>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.weekly_load}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="period" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="load" fill="#2563eb" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="chart-card">
-        <h3>Monthly training load</h3>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data.monthly_load}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="period" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="load" fill="#16a34a" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Source</th>
-            <th>Sport</th>
-            <th>Duration (min)</th>
-            <th>Avg HR</th>
-            <th>Max HR</th>
-            <th>Strain</th>
-            <th>Calories</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.workouts.map((workout, idx) => (
-            <tr key={`${workout.date}-${idx}`}>
-              <td>{workout.date}</td>
-              <td>{workout.source}</td>
-              <td>{workout.sport_type}</td>
-              <td>{(workout.duration_ms / 60000).toFixed(1)}</td>
-              <td>{workout.avg_hr ?? '--'}</td>
-              <td>{workout.max_hr ?? '--'}</td>
-              <td>{workout.strain ?? '--'}</td>
-              <td>{workout.calories == null ? '--' : Number(workout.calories).toFixed(0)}</td>
-            </tr>
+      <div className="selector-row" style={{ marginBottom: '1.25rem' }}>
+        <label>Sport</label>
+        <div className="sport-pills">
+          {sportTypes.map((s) => (
+            <button
+              key={s}
+              className={`sport-pill ${sport === s ? 'active' : ''}`}
+              onClick={() => setSport(s)}
+            >
+              {s === 'all' ? 'All' : s}
+            </button>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      <div className="charts-grid">
+        <div className="chart-card">
+          <h3>Weekly load</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={data.weekly_load}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="load" fill="#2563eb" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h3>Monthly load</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={data.monthly_load}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="load" fill="#16a34a" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {data.workouts.length > 0 && (
+        <table style={{ marginTop: '1rem' }}>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Source</th>
+              <th>Sport</th>
+              <th>Duration</th>
+              <th>Avg / Max HR</th>
+              <th>Strain</th>
+              <th>Calories</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.workouts.map((workout, idx) => (
+              <tr key={`${workout.date}-${idx}`}>
+                <td>{workout.date}</td>
+                <td>
+                  <span className={`delta-badge ${workout.source === 'whoop' ? 'good' : 'warn'}`} style={{ fontSize: '0.7rem' }}>
+                    {workout.source === 'whoop' ? 'WHOOP' : 'Apple'}
+                  </span>
+                </td>
+                <td style={{ fontWeight: 500 }}>{workout.sport_type}</td>
+                <td>{(workout.duration_ms / 60000).toFixed(0)} min</td>
+                <td>{workout.avg_hr != null || workout.max_hr != null ? `${workout.avg_hr ?? '-'} / ${workout.max_hr ?? '-'}` : ''}</td>
+                <td>{workout.strain ?? ''}</td>
+                <td>{workout.calories != null ? Number(workout.calories).toFixed(0) : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }

@@ -6,10 +6,10 @@ import DeviceComparison from './views/DeviceComparison';
 import WorkoutLog from './views/WorkoutLog';
 
 const TABS = [
-  { id: 'morning', label: 'Morning Check-In' },
-  { id: 'trends', label: 'Trends Dashboard' },
-  { id: 'comparison', label: 'Device Comparison' },
-  { id: 'workouts', label: 'Workout Log' }
+  { id: 'morning', label: '\u{1F305} Readiness' },
+  { id: 'trends', label: '\u{1F4C8} Trends' },
+  { id: 'comparison', label: '\u2696\uFE0F Compare' },
+  { id: 'workouts', label: '\u{1F3CB}\uFE0F Workouts' }
 ];
 
 export default function App() {
@@ -64,13 +64,13 @@ export default function App() {
   if (!token) {
     return (
       <main className="container auth-container">
-        <h1>Unified Health Dashboard</h1>
-        <p>Login or register to connect WHOOP and ingest Apple Health data.</p>
-        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password (min 8 chars)" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <h1>HealthStitch</h1>
+        <p>Sign in to bring your WHOOP and Apple Health data together.</p>
+        <input placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password (8+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} />
         <div className="button-row">
-          <button onClick={() => login('login')}>Login</button>
-          <button onClick={() => login('register')}>Register</button>
+          <button onClick={() => login('login')}>Sign In</button>
+          <button onClick={() => login('register')}>Create Account</button>
         </div>
         {authError && <p className="error">{authError}</p>}
       </main>
@@ -80,11 +80,11 @@ export default function App() {
   return (
     <main className="container">
       <header className="header-row">
-        <h1>Unified Health Dashboard</h1>
+        <h1>HealthStitch</h1>
         <div className="button-row">
-          <button onClick={connectWhoop}>Connect WHOOP</button>
-          <button onClick={syncWhoop}>Sync WHOOP</button>
-          <button onClick={logout}>Logout</button>
+          <button onClick={connectWhoop}>Link WHOOP</button>
+          <button onClick={syncWhoop}>Pull Latest</button>
+          <button onClick={logout}>Sign Out</button>
         </div>
       </header>
 

@@ -2,13 +2,41 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '../api/client';
 
 function hours(ms) {
-  if (ms == null) return '--';
+  if (ms == null) return null;
   return (ms / 3_600_000).toFixed(1);
 }
 
-function pct(value) {
-  if (value == null) return '--';
-  return `${value.toFixed(1)}%`;
+function deltaColor(pct) {
+  if (pct == null) return 'warn';
+  if (Math.abs(pct) < 5) return 'good';
+  if (Math.abs(pct) < 15) return 'warn';
+  return 'bad';
+}
+
+function zoneColor(zone) {
+  if (!zone) return '';
+  const z = zone.toLowerCase();
+  if (z === 'green') return 'color-green';
+  if (z === 'yellow') return 'color-amber';
+  return 'color-red';
+}
+
+function gaugeColor(score) {
+  if (score == null) return 'var(--amber)';
+  if (score >= 67) return 'var(--green)';
+  if (score >= 34) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function SkeletonLoader() {
+  return (
+    <div className="grid two-col">
+      <div className="skeleton skeleton-card" />
+      <div className="skeleton skeleton-card" />
+      <div className="skeleton skeleton-card" />
+      <div className="skeleton skeleton-card" />
+    </div>
+  );
 }
 
 export default function MorningCheckIn({ token }) {
@@ -22,39 +50,82 @@ export default function MorningCheckIn({ token }) {
   }, [token]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!data) return <p>Loading morning check-in...</p>;
+  if (!data) return <SkeletonLoader />;
+
+  const score = data.recovery.score;
 
   return (
     <section>
-      <h2>Morning Check-In</h2>
+      <h2>Today's Readiness</h2>
+
+      <article className="card readiness-hero">
+        <div className="readiness-gauge" style={{ color: gaugeColor(score) }}>
+          <span className="score">{score ?? '--'}</span>
+          <span className="label">Recovery</span>
+        </div>
+        <span className={`readiness-zone ${zoneColor(data.recovery.zone)}`}>
+          {data.recovery.zone || 'Unknown'} zone
+        </span>
+      </article>
+
       <div className="grid two-col">
         <article className="card">
-          <h3>Unified Readiness</h3>
-          <p>WHOOP Recovery: <strong>{data.recovery.score ?? '--'}%</strong> ({data.recovery.zone || 'n/a'})</p>
-          <p>HRV vs Apple 90d baseline: <strong>{data.hrv.value ?? '--'}</strong> ({pct(data.hrv.delta_pct_vs_baseline)})</p>
-          <p>Resting HR vs Apple 30d baseline: <strong>{data.resting_hr.value ?? '--'}</strong> ({pct(data.resting_hr.delta_pct_vs_baseline)})</p>
+          <h3>Heart Rate Variability</h3>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+            {data.hrv.value ?? '--'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
+          </p>
+          <span className={`delta-badge ${deltaColor(data.hrv.delta_pct_vs_baseline)}`}>
+            {data.hrv.delta_pct_vs_baseline != null
+              ? `${data.hrv.delta_pct_vs_baseline > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.hrv.delta_pct_vs_baseline).toFixed(1)}% vs 90d`
+              : 'No baseline'}
+          </span>
         </article>
 
         <article className="card">
-          <h3>Last Night Sleep</h3>
-          <p>Actual sleep: <strong>{hours(data.sleep.actual_ms)}h</strong></p>
-          <p>WHOOP sleep need: <strong>{hours(data.sleep.whoop_sleep_need_ms)}h</strong></p>
-          <p>Apple long-term avg: <strong>{hours(data.sleep.apple_long_term_avg_ms)}h</strong></p>
-          <p>WHOOP sleep performance: <strong>{data.sleep.whoop_sleep_performance_pct ?? '--'}%</strong></p>
+          <h3>Resting Heart Rate</h3>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+            {data.resting_hr.value ?? '--'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
+          </p>
+          <span className={`delta-badge ${deltaColor(data.resting_hr.delta_pct_vs_baseline)}`}>
+            {data.resting_hr.delta_pct_vs_baseline != null
+              ? `${data.resting_hr.delta_pct_vs_baseline > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.resting_hr.delta_pct_vs_baseline).toFixed(1)}% vs 30d`
+              : 'No baseline'}
+          </span>
         </article>
 
         <article className="card">
-          <h3>Yesterday Training</h3>
-          <p>WHOOP Strain: <strong>{data.training_yesterday.whoop_strain ?? '--'}</strong></p>
-          <p>Apple workout: <strong>{data.training_yesterday.apple_workout_type || 'None'}</strong></p>
-          <p>Duration: <strong>{hours(data.training_yesterday.apple_workout_duration_ms)}h</strong></p>
+          <h3>Last Night's Sleep</h3>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+            {hours(data.sleep.actual_ms) ?? '--'}h
+          </p>
+          <p style={{ margin: '0.5rem 0 0.25rem', color: '#64748b', fontSize: '0.85rem' }}>
+            Need: {hours(data.sleep.whoop_sleep_need_ms) ?? '--'}h &middot; Avg: {hours(data.sleep.apple_long_term_avg_ms) ?? '--'}h
+          </p>
+          {data.sleep.whoop_sleep_performance_pct != null && (
+            <span className={`delta-badge ${data.sleep.whoop_sleep_performance_pct >= 85 ? 'good' : data.sleep.whoop_sleep_performance_pct >= 70 ? 'warn' : 'bad'}`}>
+              {data.sleep.whoop_sleep_performance_pct}% sleep score
+            </span>
+          )}
         </article>
 
         <article className="card">
-          <h3>Recommendation</h3>
-          <p className="recommendation">{data.recommendation}</p>
+          <h3>Yesterday's Training</h3>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+            {data.training_yesterday.whoop_strain != null ? Number(data.training_yesterday.whoop_strain).toFixed(1) : '--'}{' '}
+            <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>strain</span>
+          </p>
+          {data.training_yesterday.apple_workout_type && (
+            <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.85rem' }}>
+              {data.training_yesterday.apple_workout_type} &middot; {hours(data.training_yesterday.apple_workout_duration_ms) ?? '--'}h
+            </p>
+          )}
         </article>
       </div>
+
+      <article className="card recommendation-card">
+        <h3>Your Plan Today</h3>
+        <p className="recommendation">{data.recommendation}</p>
+      </article>
     </section>
   );
 }

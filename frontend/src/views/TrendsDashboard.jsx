@@ -27,6 +27,20 @@ function mergeByDate(rows, keyMap) {
   return [...map.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function SkeletonCharts() {
+  return (
+    <section>
+      <h2>Your Trends</h2>
+      <div className="charts-grid">
+        <div className="skeleton skeleton-card" style={{ height: 280 }} />
+        <div className="skeleton skeleton-card" style={{ height: 280 }} />
+        <div className="skeleton skeleton-card" style={{ height: 280 }} />
+        <div className="skeleton skeleton-card" style={{ height: 280 }} />
+      </div>
+    </section>
+  );
+}
+
 export default function TrendsDashboard({ token }) {
   const [range, setRange] = useState('30');
   const [source, setSource] = useState('both');
@@ -68,105 +82,109 @@ export default function TrendsDashboard({ token }) {
   }, [data]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!data) return <p>Loading trends...</p>;
+  if (!data) return <SkeletonCharts />;
 
   return (
     <section>
-      <h2>Trends Dashboard</h2>
+      <h2>Your Trends</h2>
       <div className="controls-inline">
         <DateRangeSelector value={range} onChange={setRange} />
         <SourceToggle value={source} onChange={setSource} />
       </div>
 
-      <div className="chart-card">
-        <h3>HRV over time (Apple SDNN vs WHOOP RMSSD)</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={hrvData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" dot={false} name="Apple SDNN" />
-            <Line type="monotone" dataKey="whoop_hrv_rmssd" stroke="#16a34a" dot={false} name="WHOOP RMSSD" />
-          </LineChart>
-        </ResponsiveContainer>
+      <div className="charts-grid">
+        <div className="chart-card">
+          <h3>How well are you recovering?</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={hrvData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="apple_watch_hrv_sdnn" stroke="#2563eb" strokeWidth={2} dot={false} name="Apple SDNN" />
+              <Line type="monotone" dataKey="whoop_hrv_rmssd" stroke="#16a34a" strokeWidth={2} dot={false} name="WHOOP RMSSD" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h3>Resting heart rate trend</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={restingData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="apple_watch_resting_hr" stroke="#2563eb" strokeWidth={2} dot={false} name="Apple Watch" />
+              <Line type="monotone" dataKey="whoop_resting_hr" stroke="#16a34a" strokeWidth={2} dot={false} name="WHOOP" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h3>Are you sleeping enough?</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={sleepData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple (hours)" radius={[3,3,0,0]} />
+              <Bar dataKey="whoop_sleep" fill="#16a34a" name="WHOOP (hours)" radius={[3,3,0,0]} />
+              <Area dataKey="whoop_sleep_need" fill="#fbbf24" fillOpacity={0.2} stroke="#f59e0b" name="Sleep need" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="chart-card">
+          <h3>Sleep quality breakdown</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={data.sleep_stages}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="slow_wave_ms" stackId="sleep" fill="#3b82f6" name="Deep" />
+              <Bar dataKey="rem_ms" stackId="sleep" fill="#8b5cf6" name="REM" />
+              <Bar dataKey="light_ms" stackId="sleep" fill="#93c5fd" name="Light" />
+              <Bar dataKey="awake_ms" stackId="sleep" fill="#fb923c" name="Awake" radius={[3,3,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <div className="chart-card">
-        <h3>Resting HR over time</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={restingData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="apple_watch_resting_hr" stroke="#2563eb" dot={false} name="Apple Watch" />
-            <Line type="monotone" dataKey="whoop_resting_hr" stroke="#16a34a" dot={false} name="WHOOP" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <div className="charts-grid" style={{ marginTop: '1rem' }}>
+        <div className="chart-card">
+          <h3>Daily training intensity</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={strainData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="apple_active_energy" fill="#2563eb" name="Active energy (cal)" radius={[3,3,0,0]} />
+              <Line type="monotone" dataKey="whoop_strain" stroke="#16a34a" strokeWidth={2} dot={false} name="Strain (WHOOP)" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
 
-      <div className="chart-card">
-        <h3>Sleep duration vs WHOOP sleep need</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={sleepData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="apple_watch_sleep" fill="#2563eb" name="Apple sleep (h)" />
-            <Bar dataKey="whoop_sleep" fill="#16a34a" name="WHOOP sleep (h)" />
-            <Area dataKey="whoop_sleep_need" fill="#fbbf24" stroke="#f59e0b" name="WHOOP sleep need (h)" />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="chart-card">
-        <h3>Sleep stages (WHOOP)</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data.sleep_stages}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="slow_wave_ms" stackId="sleep" fill="#3b82f6" name="Slow Wave" />
-            <Bar dataKey="rem_ms" stackId="sleep" fill="#8b5cf6" name="REM" />
-            <Bar dataKey="light_ms" stackId="sleep" fill="#60a5fa" name="Light" />
-            <Bar dataKey="awake_ms" stackId="sleep" fill="#f97316" name="Awake" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="chart-card">
-        <h3>Daily strain + workout load</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={strainData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="apple_active_energy" fill="#2563eb" name="Apple active energy" />
-            <Line type="monotone" dataKey="whoop_strain" stroke="#16a34a" dot={false} name="WHOOP strain" />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="chart-card">
-        <h3>Rolling 7-day average training load</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={data.strain.rolling_7d_load}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="value" stroke="#ef4444" dot={false} name="7d avg load" />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="chart-card">
+          <h3>Training load trend (7d avg)</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={data.strain.rolling_7d_load}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={2} dot={false} name="7d avg load" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </section>
   );
