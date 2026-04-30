@@ -4,6 +4,7 @@ const { JWT_SECRET, FRONTEND_URL } = require('../config');
 const { requireAuth } = require('../middleware/auth');
 const { getWhoopAuthUrl, exchangeCodeForToken, persistToken, syncWhoopData } = require('../services/whoopService');
 const { computeBaselines } = require('../services/baselineService');
+const { getSyncState } = require('../services/whoop-scheduler');
 
 const router = express.Router();
 
@@ -44,6 +45,21 @@ router.post('/sync', requireAuth, async (req, res) => {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
+});
+
+router.get('/sync-status', requireAuth, (req, res) => {
+  const state = getSyncState(req.user.userId);
+  if (!state) {
+    return res.json({ synced: false, message: 'No sync history yet' });
+  }
+  return res.json({
+    synced: true,
+    last_sync_at: state.last_sync_at,
+    last_sync_status: state.last_sync_status,
+    last_error: state.last_error,
+    consecutive_failures: state.consecutive_failures,
+    next_retry_at: state.next_retry_at
+  });
 });
 
 module.exports = router;

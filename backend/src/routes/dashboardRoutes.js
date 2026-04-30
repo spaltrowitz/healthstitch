@@ -15,14 +15,75 @@ function sourceList(sourceFilter) {
   return ['apple_watch', 'whoop'];
 }
 
-function getBaseline(userId, metricType, windowDays, day) {
-  return db.prepare(`
-    SELECT value, baseline_date
-    FROM derived_baselines
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = ? AND window_days = ? AND baseline_date <= ?
-    ORDER BY baseline_date DESC
-    LIMIT 1
-  `).get(userId, metricType, windowDays, day);
+// Pre-compiled statements for morning check-in
+const whoopRecoveryStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const whoopHrvStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'whoop' AND metric_type = 'hrv_rmssd' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const appleHrvStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'hrv_sdnn' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const whoopRhrStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'whoop' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const appleRhrStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const whoopSleepStmt = db.prepare(`
+  SELECT * FROM sleep_records
+  WHERE user_id = ? AND source = 'whoop' AND sleep_date IN (?, ?)
+  ORDER BY sleep_date DESC, end_at DESC
+  LIMIT 1
+`);
+
+const whoopStrainStmt = db.prepare(`
+  SELECT value FROM metric_records
+  WHERE user_id = ? AND source = 'whoop' AND metric_type = 'daily_strain' AND date(recorded_at) = ?
+  ORDER BY recorded_at DESC
+  LIMIT 1
+`);
+
+const appleWorkoutStmt = db.prepare(`
+  SELECT sport_type, duration_ms
+  FROM workout_records
+  WHERE user_id = ? AND source = 'apple_watch' AND date(start_at) = ?
+  ORDER BY duration_ms DESC
+  LIMIT 1
+`);
+
+// Per-source baseline lookups
+const baselineStmt = db.prepare(`
+  SELECT value, baseline_date
+  FROM derived_baselines
+  WHERE user_id = ? AND source = ? AND metric_type = ? AND window_days = ? AND baseline_date <= ?
+  ORDER BY baseline_date DESC
+  LIMIT 1
+`);
+
+function getBaseline(userId, source, metricType, windowDays, day) {
+  return baselineStmt.get(userId, source, metricType, windowDays, day);
 }
 
 function pctDelta(value, baseline) {
@@ -35,71 +96,29 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
   const day = String(req.query.date || dateString(0));
   const yesterday = dateString(-1);
 
-  const whoopRecovery = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+  const whoopRecovery = whoopRecoveryStmt.get(userId, day)?.value ?? null;
 
-  const todayWhoopHrv = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'hrv_rmssd' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+  // HRV: each source compared against its own baseline (no cross-comparison)
+  const todayWhoopHrv = whoopHrvStmt.get(userId, day)?.value ?? null;
+  const todayAppleHrv = appleHrvStmt.get(userId, day)?.value ?? null;
 
-  const todayAppleHrv = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'hrv_sdnn' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+  const whoopHrvBaseline = getBaseline(userId, 'whoop', 'hrv_rmssd', 90, day)?.value ?? null;
+  const appleHrvBaseline = getBaseline(userId, 'apple_watch', 'hrv_sdnn', 90, day)?.value ?? null;
 
-  const todayHrv = todayWhoopHrv ?? todayAppleHrv;
-  const hrvBaseline = getBaseline(userId, 'hrv_sdnn', 90, day)?.value ?? null;
+  // RHR: each source compared against its own baseline
+  const todayWhoopRhr = whoopRhrStmt.get(userId, day)?.value ?? null;
+  const todayAppleRhr = appleRhrStmt.get(userId, day)?.value ?? null;
 
-  const todayWhoopRhr = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+  const whoopRhrBaseline = getBaseline(userId, 'whoop', 'resting_hr', 30, day)?.value ?? null;
+  const appleRhrBaseline = getBaseline(userId, 'apple_watch', 'resting_hr', 30, day)?.value ?? null;
 
-  const todayAppleRhr = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
-
-  const todayRhr = todayWhoopRhr ?? todayAppleRhr;
-  const rhrBaseline = getBaseline(userId, 'resting_hr', 30, day)?.value ?? null;
-
-  const whoopSleep = db.prepare(`
-    SELECT * FROM sleep_records
-    WHERE user_id = ? AND source = 'whoop' AND sleep_date IN (?, ?)
-    ORDER BY sleep_date DESC, end_at DESC
-    LIMIT 1
-  `).get(userId, day, yesterday);
-
-  const appleSleepAvg = getBaseline(userId, 'sleep_duration', 90, day)?.value ?? null;
+  const whoopSleep = whoopSleepStmt.get(userId, day, yesterday);
+  const appleSleepAvg = getBaseline(userId, 'apple_watch', 'sleep_duration', 90, day)?.value ?? null;
+  const whoopSleepAvg = getBaseline(userId, 'whoop', 'sleep_duration', 90, day)?.value ?? null;
   const sleepDebtMs = whoopSleep ? Math.max((whoopSleep.sleep_need_ms || 0) - whoopSleep.total_duration_ms, 0) : null;
 
-  const whoopStrainYesterday = db.prepare(`
-    SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'daily_strain' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, yesterday)?.value ?? null;
-
-  const appleWorkoutYesterday = db.prepare(`
-    SELECT sport_type, duration_ms
-    FROM workout_records
-    WHERE user_id = ? AND source = 'apple_watch' AND date(start_at) = ?
-    ORDER BY duration_ms DESC
-    LIMIT 1
-  `).get(userId, yesterday);
+  const whoopStrainYesterday = whoopStrainStmt.get(userId, yesterday)?.value ?? null;
+  const appleWorkoutYesterday = appleWorkoutStmt.get(userId, yesterday);
 
   let recommendation = 'Moderate activity';
   if ((whoopRecovery != null && whoopRecovery < 33) || (sleepDebtMs != null && sleepDebtMs > 3_600_000)) {
@@ -115,21 +134,36 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
       zone: whoopRecovery == null ? null : whoopRecovery < 33 ? 'red' : whoopRecovery <= 66 ? 'yellow' : 'green'
     },
     hrv: {
-      value: todayHrv,
-      source: todayWhoopHrv != null ? 'whoop' : todayAppleHrv != null ? 'apple_watch' : null,
-      baseline_90d_apple: hrvBaseline,
-      delta_pct_vs_baseline: pctDelta(todayHrv, hrvBaseline)
+      whoop: {
+        value: todayWhoopHrv,
+        metric_type: 'hrv_rmssd',
+        baseline_90d: whoopHrvBaseline,
+        delta_pct: pctDelta(todayWhoopHrv, whoopHrvBaseline)
+      },
+      apple_watch: {
+        value: todayAppleHrv,
+        metric_type: 'hrv_sdnn',
+        baseline_90d: appleHrvBaseline,
+        delta_pct: pctDelta(todayAppleHrv, appleHrvBaseline)
+      }
     },
     resting_hr: {
-      value: todayRhr,
-      source: todayWhoopRhr != null ? 'whoop' : todayAppleRhr != null ? 'apple_watch' : null,
-      baseline_30d_apple: rhrBaseline,
-      delta_pct_vs_baseline: pctDelta(todayRhr, rhrBaseline)
+      whoop: {
+        value: todayWhoopRhr,
+        baseline_30d: whoopRhrBaseline,
+        delta_pct: pctDelta(todayWhoopRhr, whoopRhrBaseline)
+      },
+      apple_watch: {
+        value: todayAppleRhr,
+        baseline_30d: appleRhrBaseline,
+        delta_pct: pctDelta(todayAppleRhr, appleRhrBaseline)
+      }
     },
     sleep: {
       actual_ms: whoopSleep?.total_duration_ms ?? null,
       whoop_sleep_need_ms: whoopSleep?.sleep_need_ms ?? null,
       apple_long_term_avg_ms: appleSleepAvg,
+      whoop_long_term_avg_ms: whoopSleepAvg,
       whoop_sleep_performance_pct: whoopSleep?.sleep_performance ?? null,
       sleep_debt_ms: sleepDebtMs
     },
@@ -200,6 +234,7 @@ router.get('/trends', requireAuth, (req, res) => {
     ORDER BY sleep_date ASC
   `).all(userId, ...(fromDate ? [fromDate] : []));
 
+  // Strain and active energy kept as separate metrics (no combined "load")
   const whoopStrain = db.prepare(`
     SELECT date(recorded_at) AS date, value AS whoop_strain
     FROM metric_records
@@ -209,45 +244,20 @@ router.get('/trends', requireAuth, (req, res) => {
     ORDER BY date ASC
   `).all(userId, ...(fromDate ? [fromDate] : []));
 
-  const appleLoad = db.prepare(`
-    SELECT date(recorded_at) AS date, value AS apple_active_energy
+  const appleActiveEnergy = db.prepare(`
+    SELECT date(recorded_at) AS date, SUM(value) AS apple_active_energy_kcal
     FROM metric_records
     WHERE user_id = ?
       AND metric_type = 'active_energy'
       ${dateClause}
+    GROUP BY date
     ORDER BY date ASC
   `).all(userId, ...(fromDate ? [fromDate] : []));
-
-  const loadRows = db.prepare(`
-    SELECT date(recorded_at) AS date,
-      CASE
-        WHEN metric_type = 'daily_strain' THEN value
-        WHEN metric_type = 'active_energy' THEN value / 100.0
-        ELSE 0
-      END AS load
-    FROM metric_records
-    WHERE user_id = ?
-      AND metric_type IN ('daily_strain', 'active_energy')
-      ${dateClause}
-    ORDER BY date ASC
-  `).all(userId, ...(fromDate ? [fromDate] : []));
-
-  const loadByDate = new Map();
-  for (const row of loadRows) {
-    loadByDate.set(row.date, (loadByDate.get(row.date) || 0) + row.load);
-  }
-  const orderedDates = [...loadByDate.keys()].sort();
-  const rolling7 = orderedDates.map((date, idx) => {
-    const window = orderedDates.slice(Math.max(0, idx - 6), idx + 1);
-    const avg = window.reduce((sum, d) => sum + loadByDate.get(d), 0) / window.length;
-    return { date, value: avg };
-  });
 
   const baselineRows = db.prepare(`
-    SELECT baseline_date AS date, metric_type, window_days, value
+    SELECT baseline_date AS date, source, metric_type, window_days, value
     FROM derived_baselines
     WHERE user_id = ?
-      AND source = 'apple_watch'
       ${fromDate ? 'AND baseline_date >= ?' : ''}
     ORDER BY baseline_date ASC
   `).all(userId, ...(fromDate ? [fromDate] : []));
@@ -262,12 +272,33 @@ router.get('/trends', requireAuth, (req, res) => {
     sleep_stages: sleepStages,
     strain: {
       whoop: whoopStrain,
-      apple_load: appleLoad,
-      rolling_7d_load: rolling7
+      apple_active_energy: appleActiveEnergy
     },
     baselines: baselineRows
   });
 });
+
+// Pre-compiled for device-comparison
+const deviceCompRhrStmt = db.prepare(`
+  SELECT date(recorded_at) AS date, source, AVG(value) AS value
+  FROM metric_records
+  WHERE user_id = ?
+    AND metric_type = 'resting_hr'
+    AND source IN ('apple_watch', 'whoop')
+    AND date(recorded_at) BETWEEN ? AND ?
+  GROUP BY date, source
+  ORDER BY date ASC
+`);
+
+const deviceCompSleepStmt = db.prepare(`
+  SELECT sleep_date AS date, source, AVG(total_duration_ms) AS value
+  FROM sleep_records
+  WHERE user_id = ?
+    AND source IN ('apple_watch', 'whoop')
+    AND sleep_date BETWEEN ? AND ?
+  GROUP BY sleep_date, source
+  ORDER BY sleep_date ASC
+`);
 
 router.get('/device-comparison', requireAuth, (req, res) => {
   const userId = req.user.userId;
@@ -279,30 +310,11 @@ router.get('/device-comparison', requireAuth, (req, res) => {
   let whoopRows = [];
 
   if (metric === 'resting_hr') {
-    const query = db.prepare(`
-      SELECT date(recorded_at) AS date, source, AVG(value) AS value
-      FROM metric_records
-      WHERE user_id = ?
-        AND metric_type = 'resting_hr'
-        AND source IN ('apple_watch', 'whoop')
-        AND date(recorded_at) BETWEEN ? AND ?
-      GROUP BY date, source
-      ORDER BY date ASC
-    `).all(userId, from, to);
-
+    const query = deviceCompRhrStmt.all(userId, from, to);
     appleRows = query.filter((row) => row.source === 'apple_watch');
     whoopRows = query.filter((row) => row.source === 'whoop');
   } else {
-    const query = db.prepare(`
-      SELECT sleep_date AS date, source, AVG(total_duration_ms) AS value
-      FROM sleep_records
-      WHERE user_id = ?
-        AND source IN ('apple_watch', 'whoop')
-        AND sleep_date BETWEEN ? AND ?
-      GROUP BY sleep_date, source
-      ORDER BY sleep_date ASC
-    `).all(userId, from, to);
-
+    const query = deviceCompSleepStmt.all(userId, from, to);
     appleRows = query.filter((row) => row.source === 'apple_watch');
     whoopRows = query.filter((row) => row.source === 'whoop');
   }
@@ -327,6 +339,24 @@ router.get('/device-comparison', requireAuth, (req, res) => {
 
   return res.json({ metric, from, to, rows, average_delta: averageDelta });
 });
+
+// Pre-compiled for workouts (dynamic queries still needed for sport filter)
+const workoutBaseStmt = db.prepare(`
+  SELECT
+    date(start_at) AS date,
+    source,
+    sport_type,
+    duration_ms,
+    avg_hr,
+    max_hr,
+    strain,
+    COALESCE(energy_kcal, energy_kj * 0.239006) AS calories
+  FROM workout_records
+  WHERE user_id = ?
+    AND source IN (?, ?)
+    AND date(start_at) BETWEEN ? AND ?
+  ORDER BY start_at DESC
+`);
 
 router.get('/workouts', requireAuth, (req, res) => {
   const userId = req.user.userId;

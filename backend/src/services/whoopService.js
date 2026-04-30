@@ -197,7 +197,8 @@ function mapWhoopSleep(records) {
 
       if (!startAt || !endAt || !Number.isFinite(totalDuration)) return null;
 
-      const sleepDate = endAt.slice(0, 10);
+      // Normalize sleep_date to "night of" — the date when the user went to bed
+      const sleepDate = startAt.slice(0, 10);
       return {
         sleep_date: sleepDate,
         start_at: startAt,

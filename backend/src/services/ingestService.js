@@ -28,8 +28,11 @@ function toIso(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function toSleepDate(isoValue) {
-  return (isoValue || '').slice(0, 10);
+function toSleepDate(startIso, endIso) {
+  // Normalize to "night of" — the date when the user went to bed.
+  // Use start_at date so both sources align on the same night.
+  if (startIso) return startIso.slice(0, 10);
+  return (endIso || '').slice(0, 10);
 }
 
 function ingestMetricBatch(userId, source, records = []) {
@@ -64,7 +67,7 @@ function ingestSleepBatch(userId, source, sleeps = []) {
       const totalDuration = Number(item.total_duration_ms);
       if (!startAt || !endAt || Number.isNaN(totalDuration)) continue;
 
-      const sleepDate = item.sleep_date || toSleepDate(endAt);
+      const sleepDate = item.sleep_date || toSleepDate(startAt, endAt);
 
       insertSleepStmt.run(
         randomUUID(),
@@ -89,6 +92,20 @@ function ingestSleepBatch(userId, source, sleeps = []) {
       );
 
       if (source === 'apple_watch') {
+        insertMetricStmt.run(
+          randomUUID(),
+          userId,
+          source,
+          'sleep_duration',
+          totalDuration,
+          'ms',
+          endAt,
+          item.external_id ? `${item.external_id}:duration` : null,
+          null
+        );
+      }
+
+      if (source === 'whoop') {
         insertMetricStmt.run(
           randomUUID(),
           userId,

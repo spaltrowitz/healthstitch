@@ -26,9 +26,25 @@
 - Schema: `backend/src/migrations/001_init.sql`
 - Ingest: `backend/src/services/ingestService.js`
 - WHOOP sync: `backend/src/services/whoopService.js`
+- WHOOP scheduler: `backend/src/services/whoop-scheduler.js`
 - Baselines: `backend/src/services/baselineService.js`
 - Dashboard API: `backend/src/routes/dashboardRoutes.js`
 - Apple ingest route: `backend/src/routes/appleRoutes.js`
 - iOS data source: `ios-companion/HealthSyncCompanion/HealthKitManager.swift`
 - DB client: `backend/src/db/client.js` (better-sqlite3, WAL mode, FK enabled)
 - Actual DB: `data/health_dashboard.sqlite`
+
+### WHOOP Continuous Sync Implementation (Phase 1)
+
+**What was built:**
+- Migration `003_whoop_sync_state.sql` — tracks per-user sync state with backoff fields
+- `whoop-scheduler.js` — node-cron service, 30-min cycle, error-isolated per user, exponential backoff (1→2→4→8→…→30 min cap)
+- `GET /api/whoop/sync-status` endpoint for frontend freshness display
+- Wired into `server.js` with `WHOOP_AUTO_SYNC=false` kill switch
+
+**Design notes:**
+- `syncWhoopData()` already accepted a `since` parameter — no modification needed for delta sync
+- `fetchPaginated()` passes `since` as WHOOP's `start` query param — this was already in place
+- Pre-existing `002_whoop_token_unique.sql` migration fixed the UNIQUE constraint on `whoop_tokens.user_id`
+- user_id is TEXT (UUID), not INTEGER — matched to existing schema
+- Scheduler only starts after server listen callback to avoid racing migrations
