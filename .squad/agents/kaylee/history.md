@@ -42,3 +42,7 @@
 - **Wired into App.jsx**: Renders between header and tabs, only when logged in (token gate handled by parent conditional).
 - **CSS**: Uses existing design tokens (--green, --amber, --red, --shadow-sm). Compact bar style matches card patterns.
 - **Pattern**: `fetchStatus` wrapper swallows errors and returns null, so the component never crashes if an endpoint is missing or returns unexpected data.
+
+### 2026-04-30 — Apple Watch Phase 2 & Performance Optimizations Spawned
+
+📌 **Team update (2026-04-30T12:10:00Z):** Apple Watch Phase 2 spawned with Wash, Kaylee, River. Phase 2 adds background observers, anchored queries, Keychain JWT, BGAppRefreshTask, sync-status endpoint. Kaylee building SyncStatus UI component with 60s auto-refresh and green/amber/red freshness indicators. River adding expression indexes on date columns and pre-computed training_load_aggregates for O(1) workouts queries. — Scribe

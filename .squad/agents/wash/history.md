@@ -80,3 +80,7 @@
 - `GET /api/apple/sync-status` returns: connected, last_sync_at, status, metric_counts, staleness_minutes, consecutive_failures, last_error
 
 **Testing caveat:** Background delivery and BGTasks require physical device. Simulator won't trigger observers.
+
+### 2026-04-30 — Apple Watch Phase 2 & Performance Optimizations Spawned
+
+📌 **Team update (2026-04-30T12:10:00Z):** Apple Watch Phase 2 spawned with Wash, Kaylee, River. Phase 2 adds background observers, anchored queries, Keychain JWT, BGAppRefreshTask, sync-status endpoint. Kaylee building SyncStatus UI component with 60s auto-refresh and green/amber/red freshness indicators. River adding expression indexes on date columns and pre-computed training_load_aggregates for O(1) workouts queries. — Scribe
