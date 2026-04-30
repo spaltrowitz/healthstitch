@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from './api/client';
+import SyncStatus from './components/SyncStatus';
 import MorningCheckIn from './views/MorningCheckIn';
 import TrendsDashboard from './views/TrendsDashboard';
 import DeviceComparison from './views/DeviceComparison';
@@ -87,6 +88,8 @@ export default function App() {
           <button onClick={logout}>Sign Out</button>
         </div>
       </header>
+
+      <SyncStatus token={token} />
 
       {syncMessage && <p>{syncMessage}</p>}
 

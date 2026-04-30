@@ -446,3 +446,39 @@ tr:last-child td {
   border-radius: 8px;
   font-weight: 500;
 }
+
+/* Sync Status Bar */
+.sync-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem 0.75rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 0.5rem;
+}
+
+.sync-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sync-divider {
+  color: #cbd5e1;
+}
+
+.freshness-fresh { color: var(--green); }
+.freshness-aging { color: var(--amber); }
+.freshness-stale { color: var(--red); }
+.freshness-muted { color: #94a3b8; }
+
+.sync-retry {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.25rem;
+}

@@ -35,3 +35,10 @@
 📌 **Team update (2026-04-30T11:50:00Z):** Wash completed data layer bug fixes. Morning check-in `hrv` and `resting_hr` now nested by source (whoop/apple_watch). Trends `strain` field changed: removed `apple_load` + `rolling_7d_load` confusion; now exposes `whoop` (0–21 score) and `apple_active_energy` (kcal) separately. Update dashboard components to reflect new nested structure. — Wash
 
 📌 **Team update (2026-04-30T11:50:00Z):** River completed WHOOP continuous sync Phase 1. Scheduler runs every 30 minutes with per-user error isolation and exponential backoff. WHOOP recovery/sleep refreshes ~30 min after wake; workouts ~5 min after completion. Dashboard data now auto-updates. — River
+
+### 2026-04-30 — Sync Status Freshness Indicator
+
+- **SyncStatus component** (`components/SyncStatus.jsx`): Fetches `/whoop/sync-status` and `/apple/sync-status` on mount, auto-refreshes every 60s. Shows relative time since last sync with color coding (green <30min, amber 30min–2h, red >2h). Gracefully handles 404s (shows "—"), never-synced state ("Not connected"), and errors (with retry button).
+- **Wired into App.jsx**: Renders between header and tabs, only when logged in (token gate handled by parent conditional).
+- **CSS**: Uses existing design tokens (--green, --amber, --red, --shadow-sm). Compact bar style matches card patterns.
+- **Pattern**: `fetchStatus` wrapper swallows errors and returns null, so the component never crashes if an endpoint is missing or returns unexpected data.
