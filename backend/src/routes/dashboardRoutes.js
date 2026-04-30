@@ -10,6 +10,26 @@ function dateString(offsetDays = 0) {
   return date.toISOString().slice(0, 10);
 }
 
+function generateDateRange(startDate, endDate) {
+  const dates = [];
+  const current = new Date(startDate + 'T00:00:00Z');
+  const end = new Date(endDate + 'T00:00:00Z');
+  while (current <= end) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+function fillGaps(rows, dateRange, dateKey = 'date') {
+  const byDate = new Map(rows.map((r) => [r[dateKey], r]));
+  return dateRange.map((date) => {
+    const row = byDate.get(date);
+    if (row) return { ...row, has_data: true };
+    return { [dateKey]: date, has_data: false };
+  });
+}
+
 function sourceList(sourceFilter) {
   if (sourceFilter === 'apple_watch' || sourceFilter === 'whoop') return [sourceFilter];
   return ['apple_watch', 'whoop'];
@@ -262,17 +282,21 @@ router.get('/trends', requireAuth, (req, res) => {
     ORDER BY baseline_date ASC
   `).all(userId, ...(fromDate ? [fromDate] : []));
 
+  const today = dateString(0);
+  const rangeStart = fromDate || (hrv.length ? hrv[0].date : today);
+  const dateRange = generateDateRange(rangeStart, today);
+
   return res.json({
     range,
     source: sources,
     timeline_start: fromDate,
-    hrv,
-    resting_hr: restingHr,
-    sleep,
-    sleep_stages: sleepStages,
+    hrv: fillGaps(hrv, dateRange),
+    resting_hr: fillGaps(restingHr, dateRange),
+    sleep: fillGaps(sleep, dateRange),
+    sleep_stages: fillGaps(sleepStages, dateRange),
     strain: {
-      whoop: whoopStrain,
-      apple_active_energy: appleActiveEnergy
+      whoop: fillGaps(whoopStrain, dateRange),
+      apple_active_energy: fillGaps(appleActiveEnergy, dateRange)
     },
     baselines: baselineRows
   });
@@ -340,23 +364,31 @@ router.get('/device-comparison', requireAuth, (req, res) => {
   return res.json({ metric, from, to, rows, average_delta: averageDelta });
 });
 
-// Pre-compiled for workouts (dynamic queries still needed for sport filter)
-const workoutBaseStmt = db.prepare(`
-  SELECT
-    date(start_at) AS date,
-    source,
-    sport_type,
-    duration_ms,
-    avg_hr,
-    max_hr,
-    strain,
-    COALESCE(energy_kcal, energy_kj * 0.239006) AS calories
-  FROM workout_records
-  WHERE user_id = ?
-    AND source IN (?, ?)
-    AND date(start_at) BETWEEN ? AND ?
-  ORDER BY start_at DESC
-`);
+// Lazy-init for workouts — aggregates table created by migration
+let _weeklyAggStmt, _monthlyAggStmt;
+function getAggStmts() {
+  if (!_weeklyAggStmt) {
+    _weeklyAggStmt = db.prepare(`
+      SELECT period_start AS period, SUM(total_load) AS load, SUM(workout_count) AS count,
+        AVG(avg_strain) AS avg_strain, SUM(total_calories) AS calories
+      FROM training_load_aggregates
+      WHERE user_id = ? AND period_type = 'weekly'
+        AND period_start >= ? AND period_end <= ?
+      GROUP BY period_start
+      ORDER BY period_start ASC
+    `);
+    _monthlyAggStmt = db.prepare(`
+      SELECT period_start AS period, SUM(total_load) AS load, SUM(workout_count) AS count,
+        AVG(avg_strain) AS avg_strain, SUM(total_calories) AS calories
+      FROM training_load_aggregates
+      WHERE user_id = ? AND period_type = 'monthly'
+        AND period_start >= ? AND period_end <= ?
+      GROUP BY period_start
+      ORDER BY period_start ASC
+    `);
+  }
+  return { weeklyAggStmt: _weeklyAggStmt, monthlyAggStmt: _monthlyAggStmt };
+}
 
 router.get('/workouts', requireAuth, (req, res) => {
   const userId = req.user.userId;
@@ -393,30 +425,14 @@ router.get('/workouts', requireAuth, (req, res) => {
     ORDER BY start_at DESC
   `).all(...params);
 
-  const loadRows = db.prepare(`
-    SELECT
-      date(start_at) AS date,
-      strftime('%Y-%W', start_at) AS week,
-      strftime('%Y-%m', start_at) AS month,
-      COALESCE(strain, COALESCE(energy_kcal, energy_kj * 0.239006), duration_ms / 60000.0) AS load
-    FROM workout_records
-    WHERE user_id = ?
-      AND source IN (${sourcePlaceholders})
-      AND date(start_at) BETWEEN ? AND ?
-      ${sportClause}
-  `).all(...params);
-
-  const weekly = {};
-  const monthly = {};
-  for (const row of loadRows) {
-    weekly[row.week] = (weekly[row.week] || 0) + (row.load || 0);
-    monthly[row.month] = (monthly[row.month] || 0) + (row.load || 0);
-  }
+  const { weeklyAggStmt, monthlyAggStmt } = getAggStmts();
+  const weekly = weeklyAggStmt.all(userId, from, to);
+  const monthly = monthlyAggStmt.all(userId, from, to);
 
   return res.json({
     workouts,
-    weekly_load: Object.entries(weekly).map(([period, load]) => ({ period, load })),
-    monthly_load: Object.entries(monthly).map(([period, load]) => ({ period, load }))
+    weekly_load: weekly.map((r) => ({ period: r.period, load: r.load, count: r.count, avg_strain: r.avg_strain, calories: r.calories })),
+    monthly_load: monthly.map((r) => ({ period: r.period, load: r.load, count: r.count, avg_strain: r.avg_strain, calories: r.calories }))
   });
 });
 

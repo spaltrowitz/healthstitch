@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const db = require('../db/client');
+const { updateAggregatesForWorkout } = require('./aggregateService');
 
 const insertMetricStmt = db.prepare(`
   INSERT OR IGNORE INTO metric_records (
@@ -125,6 +126,8 @@ function ingestSleepBatch(userId, source, sleeps = []) {
 }
 
 function ingestWorkoutBatch(userId, source, workouts = []) {
+  const insertedStartAts = [];
+
   const tx = db.transaction((items) => {
     for (const item of items) {
       const startAt = toIso(item.start_at || item.start);
@@ -132,7 +135,7 @@ function ingestWorkoutBatch(userId, source, workouts = []) {
       const duration = Number(item.duration_ms);
       if (!startAt || !endAt || Number.isNaN(duration) || !item.sport_type) continue;
 
-      insertWorkoutStmt.run(
+      const result = insertWorkoutStmt.run(
         randomUUID(),
         userId,
         source,
@@ -150,10 +153,19 @@ function ingestWorkoutBatch(userId, source, workouts = []) {
         item.external_id || null,
         item.metadata ? JSON.stringify(item.metadata) : null
       );
+      if (result.changes > 0) insertedStartAts.push(startAt);
     }
   });
 
   tx(workouts);
+
+  const seen = new Set();
+  for (const startAt of insertedStartAts) {
+    const dateKey = startAt.slice(0, 10);
+    if (seen.has(dateKey)) continue;
+    seen.add(dateKey);
+    updateAggregatesForWorkout(userId, startAt);
+  }
 }
 
 module.exports = {

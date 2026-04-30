@@ -48,3 +48,27 @@
 - Pre-existing `002_whoop_token_unique.sql` migration fixed the UNIQUE constraint on `whoop_tokens.user_id`
 - user_id is TEXT (UUID), not INTEGER — matched to existing schema
 - Scheduler only starts after server listen callback to avoid racing migrations
+
+### Performance Improvements (2025-07)
+
+**Expression indexes added (migration 004):**
+- `idx_metric_date_expr` on `metric_records(date(recorded_at))` — used by GROUP BY date queries in trends
+- `idx_sleep_start_date_expr` on `sleep_records(date(start_at))` — morning check-in
+- `idx_workout_start_date_expr` on `workout_records(date(start_at))` — workouts endpoint
+- `idx_metric_user_source_date` composite on `metric_records(user_id, source, date(recorded_at))` — most common query pattern
+
+**Pre-computed aggregates (migration 005 + aggregateService.js):**
+- `training_load_aggregates` table stores weekly (Mon-Sun) and monthly rollups per user/source
+- Workouts dashboard reads from aggregates instead of computing on the fly
+- Incremental update via `updateAggregatesForWorkout()` called after each ingest
+- `recomputeAll(userId)` available for full backfill
+
+**Gap indicators in trends API:**
+- Trends endpoint now fills missing dates with `{ date, has_data: false }` entries
+- Frontend can distinguish "no data collected" from "value was zero"
+- Uses `generateDateRange()` + `fillGaps()` helper functions
+
+**Design notes:**
+- Prepared statements in aggregateService and dashboardRoutes use lazy-init pattern to avoid racing migrations (since `app.js` is loaded before `migrate.js` in test scenarios)
+- Aggregate upsert uses ON CONFLICT on `(user_id, period_type, period_start, source)` unique index
+- ingestWorkoutBatch now tracks which dates were affected and recomputes only those periods
