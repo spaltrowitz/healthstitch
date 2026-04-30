@@ -23,3 +23,9 @@
 📌 **Team update (2026-04-29T23:04:00Z):** Book established HealthStitch brand, warm copy voice, and task-oriented tab labels ("Today's Readiness", "Trends", "Apple vs WHOOP", "Workouts"). Update UI copy to reflect new voice and naming conventions. — Book
 
 📌 **Team update (2026-04-29T23:04:00Z):** River's data layer review found critical HRV metric mismatch (WHOOP RMSSD vs Apple SDNN) affecting morning check-in deltas. Will need UI handling for metric clarity and potential baseline gaps for WHOOP-only users. — River
+
+### 2026-04-30 — API Shape Changes (Data Fixes)
+
+📌 **Team update (2026-04-30T11:50:00Z):** Wash completed data layer bug fixes. Morning check-in `hrv` and `resting_hr` now nested by source (whoop/apple_watch). Trends `strain` field changed: removed `apple_load` + `rolling_7d_load` confusion; now exposes `whoop` (0–21 score) and `apple_active_energy` (kcal) separately. Update dashboard components to reflect new nested structure. — Wash
+
+📌 **Team update (2026-04-30T11:50:00Z):** River completed WHOOP continuous sync Phase 1. Scheduler runs every 30 minutes with per-user error isolation and exponential backoff. WHOOP recovery/sleep refreshes ~30 min after wake; workouts ~5 min after completion. Dashboard data now auto-updates. — River

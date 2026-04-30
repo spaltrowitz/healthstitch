@@ -133,3 +133,84 @@
 - Always lead with user benefit (question, goal, action) before technical detail
 - Parenthetical device attribution is fine for power users; it clarifies the source without cluttering the main message
 - Avoid: "ingest", "delta", "RMSSD", "SDNN", "HRV" in user text; instead: "pulled together", "change", "morning readiness"
+
+---
+
+## 2026-04-30: Data Layer Bug Fixes
+
+**By:** Wash (Backend Developer)
+
+**What:** Fixed all 6 data integrity bugs from River's review. Two were critical (HRV metric mismatch, missing WHOOP baselines), four were important (token upsert, sleep date, inline prepares, unit mismatch).
+
+**Key Decisions:**
+
+### Per-Source HRV Baselines
+WHOOP RMSSD and Apple SDNN are different statistical methods. Each device's HRV is now compared only against its own historical baseline. Morning check-in API nests by source:
+```json
+{
+  "hrv": {
+    "whoop": { "value": 45, "metric_type": "hrv_rmssd", "baseline_90d": 42, "delta_pct": 7.1 },
+    "apple_watch": { "value": 62, "metric_type": "hrv_sdnn", "baseline_90d": 58, "delta_pct": 6.9 }
+  }
+}
+```
+
+### Sleep Date Normalization
+Both sources now use start_at date as `sleep_date` ("night of" convention). Previously WHOOP used wake-up date, Apple used end-time date. This aligns device comparison queries.
+
+### Strain and Active Energy Separated
+Old code divided kcal by 100 and summed with WHOOP strain (0–21 scale) — undocumented and misleading. Now exposed as separate series: `strain.whoop` (0–21 score) and `strain.apple_active_energy` (kcal). Future combined load index requires explicit design with documented normalization.
+
+### WHOOP Token Table UNIQUE Constraint
+Migration recreates token table with UNIQUE(user_id) so ON CONFLICT upserts work correctly. Old duplicate tokens discarded (keeps most recent).
+
+### Pre-Compiled Database Statements
+Removed 7 inline db.prepare() calls from dashboard routes. Statements now pre-compiled in service layer.
+
+**Why:** Data integrity and API consistency. HRV comparison results were misleading for WHOOP users. Per-source baselines and separate strain/energy expose the data truthfully.
+
+**Frontend Impact:**
+- Morning check-in `hrv` and `resting_hr` nested by source
+- Trends `strain` simplified: `whoop` (0–21) and `apple_active_energy` (kcal) as separate series
+
+---
+
+## 2026-04-30: WHOOP Continuous Sync — Phase 1
+
+**By:** River (Data Engineer)
+
+**What:** Implemented scheduled WHOOP data sync with per-user error isolation and exponential backoff.
+
+**Key Decisions:**
+
+### Architecture
+- Node-cron scheduler runs every 30 minutes
+- `whoop_sync_state` table tracks last_sync_at per user
+- Delta sync loop over all connected users with per-user error isolation
+- Exponential backoff on failure (capped at 30 minutes)
+- `/api/whoop/sync-status` endpoint for debugging
+- `WHOOP_AUTO_SYNC=false` env var disables cron entirely (useful for dev/test)
+
+### Implementation Details
+1. Delta sync already supported — `syncWhoopData(userId, since)` and `fetchPaginated()` accepted `since` param out of the box. No modification to existing sync logic needed.
+2. Backoff cap at 30 minutes matches the cron interval — a failing user won't be retried faster than once per cycle.
+3. Scheduler starts inside the `listen` callback to guarantee migrations have run before prepared statements execute.
+
+**Files Added/Modified:**
+- `backend/src/migrations/003_whoop_sync_state.sql` (new table)
+- `backend/src/services/whoop-scheduler.js` (new service)
+- `backend/src/routes/whoopRoutes.js` (added sync-status endpoint)
+- `backend/src/server.js` (wired scheduler startup)
+- `backend/package.json` (added node-cron)
+
+**Data Freshness After Phase 1:**
+- WHOOP recovery/sleep: ~30 min after wake
+- WHOOP workouts: ~5 min after completion
+
+**Why:** Manual sync is a friction point. Continuous pull ensures dashboard data is stale by at most 30–60 minutes (vs "whenever user remembers to open the app").
+
+**Future Phases (Out of Scope):**
+- Phase 2 (Apple Watch): Observer queries, background URLSession, anchored queries (3–4 days)
+- Webhook upgrade when deployed to HTTPS (eliminates polling)
+- Monitoring/alerting on consecutive_failures > N
+- Rate limiting awareness (WHOOP API throttle headers)
