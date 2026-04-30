@@ -7,11 +7,21 @@ const { computeBaselines } = require('../services/baselineService');
 const router = express.Router();
 
 const upsertSyncStmt = db.prepare(`
-  INSERT INTO apple_sync_state (user_id, last_sync_at)
-  VALUES (?, ?)
+  INSERT INTO apple_sync_state (user_id, last_sync_at, last_sync_status, metric_counts_json)
+  VALUES (?, ?, 'success', ?)
   ON CONFLICT(user_id) DO UPDATE SET
     last_sync_at = excluded.last_sync_at,
+    last_sync_status = 'success',
+    metric_counts_json = excluded.metric_counts_json,
+    consecutive_failures = 0,
+    last_error = NULL,
     updated_at = datetime('now')
+`);
+
+const getSyncStateStmt = db.prepare(`
+  SELECT last_sync_at, last_sync_status, metric_counts_json, consecutive_failures, last_error, updated_at
+  FROM apple_sync_state
+  WHERE user_id = ?
 `);
 
 router.post('/ingest', requireAuth, (req, res) => {
@@ -24,7 +34,13 @@ router.post('/ingest', requireAuth, (req, res) => {
   ingestMetricBatch(userId, 'apple_watch', metrics);
   ingestSleepBatch(userId, 'apple_watch', sleepSessions);
   ingestWorkoutBatch(userId, 'apple_watch', workouts);
-  upsertSyncStmt.run(userId, lastSyncAt);
+
+  const metricCounts = JSON.stringify({
+    metrics: metrics.length,
+    sleep_sessions: sleepSessions.length,
+    workouts: workouts.length
+  });
+  upsertSyncStmt.run(userId, lastSyncAt, metricCounts);
   computeBaselines(userId);
 
   return res.json({
@@ -35,6 +51,36 @@ router.post('/ingest', requireAuth, (req, res) => {
       workouts: workouts.length
     },
     last_sync_at: lastSyncAt
+  });
+});
+
+router.get('/sync-status', requireAuth, (req, res) => {
+  const userId = req.user.userId;
+  const row = getSyncStateStmt.get(userId);
+
+  if (!row) {
+    return res.json({
+      connected: false,
+      last_sync_at: null,
+      status: null,
+      metric_counts: null,
+      staleness_minutes: null
+    });
+  }
+
+  const lastSyncAt = row.last_sync_at ? new Date(row.last_sync_at) : null;
+  const stalenessMinutes = lastSyncAt
+    ? Math.round((Date.now() - lastSyncAt.getTime()) / 60000)
+    : null;
+
+  return res.json({
+    connected: true,
+    last_sync_at: row.last_sync_at,
+    status: row.last_sync_status,
+    metric_counts: row.metric_counts_json ? JSON.parse(row.metric_counts_json) : null,
+    staleness_minutes: stalenessMinutes,
+    consecutive_failures: row.consecutive_failures,
+    last_error: row.last_error
   });
 });
 

@@ -2,12 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @AppStorage("backend_url") private var backendURLString = "http://localhost:3000/"
-    @AppStorage("jwt_token") private var jwtToken = ""
     @AppStorage("last_sync_at") private var lastSyncAtString = ""
 
+    @State private var jwtToken: String = KeychainHelper.load(key: "jwt_token") ?? ""
     @State private var status = "Not synced yet"
     @State private var isSyncing = false
-    @State private var showingSettings = false
 
     private let healthKitManager = HealthKitManager()
     private let syncService = SyncService()
@@ -27,11 +26,16 @@ struct ContentView: View {
 
                     Text("Status: \(status)")
                     Text("Last sync: \(lastSyncAtString.isEmpty ? "Never" : lastSyncAtString)")
+                    Text("Background: Active")
+                        .foregroundColor(.green)
                 }
 
                 Section("Backend") {
                     TextField("Backend URL", text: $backendURLString)
                     SecureField("JWT token", text: $jwtToken)
+                        .onChange(of: jwtToken) { _, newValue in
+                            KeychainHelper.save(key: "jwt_token", value: newValue)
+                        }
                 }
             }
             .navigationTitle("Health Sync Companion")

@@ -22,5 +22,14 @@
     <string>This app reads your Health data to sync it to your private Unified Health Dashboard backend.</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>This app does not write to HealthKit. This key is present for future extensibility.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.healthstitch.companion.refresh</string>
+    </array>
 </dict>
 </plist>

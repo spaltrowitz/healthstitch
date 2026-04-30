@@ -59,3 +59,24 @@
 6. **Active energy unit normalization:** Removed the bogus combined "load" metric that divided kcal by 100 and added it to strain. Trends endpoint now returns `strain.whoop` and `strain.apple_active_energy` separately.
 
 **API contract change:** Morning check-in `hrv` and `resting_hr` fields now nest by source instead of flattening to a single value. Frontend will need to handle both sub-objects.
+
+### 2025-07-15 — Apple Watch Continuous Sync (Phase 2) Implemented
+
+**What was built:**
+- `BackgroundSyncManager` — singleton managing HKObserverQuery observers, HKAnchoredObjectQuery delta sync, background URLSession uploads, and BGAppRefreshTask fallback
+- `KeychainHelper` — simple Keychain wrapper for JWT storage (kSecAttrAccessibleAfterFirstUnlock)
+- AppDelegate wired to register background tasks, enable delivery, start observers on launch
+- `GET /api/apple/sync-status` endpoint with staleness_minutes, metric_counts, failure tracking
+- Migration 004 enhances apple_sync_state with status/counts/failure columns
+
+**Architecture notes:**
+- Background sync uses anchored queries (not date-based) — more reliable, no missed samples
+- Anchors stored per-metric in UserDefaults; JWT in Keychain
+- Background URLSession writes payload to temp file then uploads (required for background transfers)
+- BGAppRefreshTask fires only if no observer has synced in 2+ hours (insurance policy)
+- Foreground "Sync Now" path unchanged — still uses date-based queries via HealthKitManager
+
+**Backend endpoint:**
+- `GET /api/apple/sync-status` returns: connected, last_sync_at, status, metric_counts, staleness_minutes, consecutive_failures, last_error
+
+**Testing caveat:** Background delivery and BGTasks require physical device. Simulator won't trigger observers.
