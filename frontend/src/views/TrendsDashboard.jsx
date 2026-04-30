@@ -76,8 +76,8 @@ export default function TrendsDashboard({ token }) {
   const strainData = useMemo(() => {
     if (!data) return [];
     return mergeByDate(
-      [...data.strain.whoop.map((d) => ({ ...d, type: 'whoop' })), ...data.strain.apple_load.map((d) => ({ ...d, type: 'apple' }))],
-      (row) => (row.type === 'whoop' ? { whoop_strain: row.whoop_strain } : { apple_active_energy: row.apple_active_energy })
+      [...data.strain.whoop.map((d) => ({ ...d, type: 'whoop' })), ...data.strain.apple_active_energy.map((d) => ({ ...d, type: 'apple' }))],
+      (row) => (row.type === 'whoop' ? { whoop_strain: row.whoop_strain } : { apple_active_energy: row.apple_active_energy_kcal })
     );
   }, [data]);
 
@@ -173,18 +173,7 @@ export default function TrendsDashboard({ token }) {
           </ResponsiveContainer>
         </div>
 
-        <div className="chart-card">
-          <h3>Training load trend (7d avg)</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data.strain.rolling_7d_load}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={2} dot={false} name="7d avg load" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+
       </div>
     </section>
   );

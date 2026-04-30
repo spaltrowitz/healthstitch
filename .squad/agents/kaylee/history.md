@@ -24,6 +24,12 @@
 
 📌 **Team update (2026-04-29T23:04:00Z):** River's data layer review found critical HRV metric mismatch (WHOOP RMSSD vs Apple SDNN) affecting morning check-in deltas. Will need UI handling for metric clarity and potential baseline gaps for WHOOP-only users. — River
 
+### 2026-04-30 — API Shape Migration (Wash's data fixes)
+
+- **Morning Check-In API**: `hrv` and `resting_hr` are now per-source nested objects (`hrv.whoop`, `hrv.apple_watch`, `resting_hr.whoop`, `resting_hr.apple_watch`) each with own `value`, `baseline_*`, and `delta_pct`. Updated MorningCheckIn view to show both sources side by side with device labels (Apple Watch SDNN vs WHOOP RMSSD).
+- **Trends API**: `strain` is now `{ whoop: [...], apple_active_energy: [...] }` — no more combined `apple_load` key or `rolling_7d_load`. Field in apple entries is `apple_active_energy_kcal`. Removed 7d rolling load chart that referenced removed data.
+- **Pattern**: When API returns per-source data, conditionally render each source only if its value is non-null. Graceful fallback when one device has no data.
+
 ### 2026-04-30 — API Shape Changes (Data Fixes)
 
 📌 **Team update (2026-04-30T11:50:00Z):** Wash completed data layer bug fixes. Morning check-in `hrv` and `resting_hr` now nested by source (whoop/apple_watch). Trends `strain` field changed: removed `apple_load` + `rolling_7d_load` confusion; now exposes `whoop` (0–21 score) and `apple_active_energy` (kcal) separately. Update dashboard components to reflect new nested structure. — Wash

@@ -71,26 +71,72 @@ export default function MorningCheckIn({ token }) {
       <div className="grid two-col">
         <article className="card">
           <h3>Heart Rate Variability</h3>
-          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {data.hrv.value ?? '—'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
-          </p>
-          <span className={`delta-badge ${deltaColor(data.hrv.delta_pct_vs_baseline)}`}>
-            {data.hrv.delta_pct_vs_baseline != null
-              ? `${data.hrv.delta_pct_vs_baseline > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.hrv.delta_pct_vs_baseline).toFixed(1)}% vs 90d`
-              : 'No baseline'}
-          </span>
+          <div className="source-metrics">
+            {data.hrv.apple_watch?.value != null && (
+              <div className="source-row">
+                <span className="source-label">Apple Watch (SDNN)</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+                  {data.hrv.apple_watch.value} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
+                </p>
+                <span className={`delta-badge ${deltaColor(data.hrv.apple_watch.delta_pct)}`}>
+                  {data.hrv.apple_watch.delta_pct != null
+                    ? `${data.hrv.apple_watch.delta_pct > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.hrv.apple_watch.delta_pct).toFixed(1)}% vs 90d`
+                    : 'No baseline'}
+                </span>
+              </div>
+            )}
+            {data.hrv.whoop?.value != null && (
+              <div className="source-row">
+                <span className="source-label">WHOOP (RMSSD)</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+                  {data.hrv.whoop.value} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ms</span>
+                </p>
+                <span className={`delta-badge ${deltaColor(data.hrv.whoop.delta_pct)}`}>
+                  {data.hrv.whoop.delta_pct != null
+                    ? `${data.hrv.whoop.delta_pct > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.hrv.whoop.delta_pct).toFixed(1)}% vs 90d`
+                    : 'No baseline'}
+                </span>
+              </div>
+            )}
+            {data.hrv.apple_watch?.value == null && data.hrv.whoop?.value == null && (
+              <p style={{ color: '#64748b' }}>No HRV data today</p>
+            )}
+          </div>
         </article>
 
         <article className="card">
           <h3>Resting Heart Rate</h3>
-          <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
-            {data.resting_hr.value ?? '—'} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
-          </p>
-          <span className={`delta-badge ${deltaColor(data.resting_hr.delta_pct_vs_baseline)}`}>
-            {data.resting_hr.delta_pct_vs_baseline != null
-              ? `${data.resting_hr.delta_pct_vs_baseline > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.resting_hr.delta_pct_vs_baseline).toFixed(1)}% vs 30d`
-              : 'No baseline'}
-          </span>
+          <div className="source-metrics">
+            {data.resting_hr.apple_watch?.value != null && (
+              <div className="source-row">
+                <span className="source-label">Apple Watch</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+                  {data.resting_hr.apple_watch.value} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
+                </p>
+                <span className={`delta-badge ${deltaColor(data.resting_hr.apple_watch.delta_pct)}`}>
+                  {data.resting_hr.apple_watch.delta_pct != null
+                    ? `${data.resting_hr.apple_watch.delta_pct > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.resting_hr.apple_watch.delta_pct).toFixed(1)}% vs 30d`
+                    : 'No baseline'}
+                </span>
+              </div>
+            )}
+            {data.resting_hr.whoop?.value != null && (
+              <div className="source-row">
+                <span className="source-label">WHOOP</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0.25rem 0' }}>
+                  {data.resting_hr.whoop.value} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>bpm</span>
+                </p>
+                <span className={`delta-badge ${deltaColor(data.resting_hr.whoop.delta_pct)}`}>
+                  {data.resting_hr.whoop.delta_pct != null
+                    ? `${data.resting_hr.whoop.delta_pct > 0 ? '\u2191' : '\u2193'} ${Math.abs(data.resting_hr.whoop.delta_pct).toFixed(1)}% vs 30d`
+                    : 'No baseline'}
+                </span>
+              </div>
+            )}
+            {data.resting_hr.apple_watch?.value == null && data.resting_hr.whoop?.value == null && (
+              <p style={{ color: '#64748b' }}>No RHR data today</p>
+            )}
+          </div>
         </article>
 
         <article className="card">
