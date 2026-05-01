@@ -135,3 +135,38 @@ Frontend runs on `http://localhost:5173` and proxies `/api` to the backend.
 - Schema `source` values are extensible (`apple_watch`, `whoop`, future `oura`, `garmin`).
 - New devices can be added as new ingestion modules writing to existing normalized tables.
 - Tables already include `user_id` for future multi-user expansion and Postgres migration.
+
+## Roadmap
+
+### V1 (current)
+- Apple Watch data (via iOS companion or file upload)
+- WHOOP data (via OAuth API or file upload)
+- Morning Check-In, Trends Dashboard, Device Comparison, Workout Log
+- Rolling baselines (HRV 90d, RHR 30d, sleep 90d)
+
+### V2 — Additional wearables & fertility tracking
+- Oura Ring (upload/ingest support)
+- Garmin (upload/ingest support)
+- Fitbit (upload/ingest support)
+- Natural Cycles (upload/ingest support)
+
+### V3 — Lifestyle & body composition
+- Smart scale integration (eufy Life — weight, body fat %, BMI, lean mass)
+- MyFitnessPal (nutrition — calories, macros, meal logging)
+- Perfectly Snug smart topper (sleep environment — bed temperature, surface data)
+- Other health lifestyle apps (Peloton, Strong, SleepWatch, etc.)
+- Body composition trends and correlation with recovery/performance
+
+### Feature Backlog
+- **Recovery Mode / Injury Pause** — User-activated mode for injury, surgery, illness, or any out-of-normal-routine period. While active: data is still tracked but excluded from baseline calculations, recommendations shift to recovery-focused guidance (not "ready to train"), insights acknowledge the abnormal period instead of flagging metrics as concerning. This addresses a real gap — neither WHOOP nor Apple Watch handle this today.
+- **Apple Sign-In** (priority) — Core users have Apple Watches and Apple IDs. Required by App Store if any third-party sign-in is offered. Add as primary auth method.
+- **Google Sign-In** (secondary) — For Android/Garmin/Fitbit users without Apple devices. Add alongside Apple Sign-In.
+- **Device Placement Profiles** — Track where each device is worn (left/right wrist, bicep, ankle, finger) to contextualize metric deltas. A 4 bpm RHR difference is normal for dual-wrist placement but may indicate a problem for same-wrist devices. Supports WHOOP (wrist, bicep, ankle), Oura (specific finger), Apple Watch (wrist), Garmin (wrist).
+- **Migrate SQLite → PostgreSQL** — Move from file-based SQLite to hosted Postgres (e.g., Supabase, RDS) for multi-device access, cloud deployment, concurrent users, and better scalability. Schema is already Postgres-compatible (`user_id` foreign keys, standard SQL types). Enables deploying the backend to any cloud host without disk persistence concerns.
+- **Device Value Analysis** — "Which device is worth keeping?" Compares what unique data each device provides, what overlaps, and whether a subscription device (WHOOP ~$30/mo, Oura ~$6/mo) adds enough value over free alternatives (Apple Watch). Factors: unique metrics only that device provides, accuracy comparison on shared metrics, actionable insights each device enables, cost per unique insight. Helps users decide which subscriptions to keep or cancel.
+- **AI Health Chat** — Conversational interface that can answer questions about your data across all devices. Unlike WHOOP's chatbot (WHOOP data only), HealthStitch AI sees all sources and can explain cross-device discrepancies, suggest optimizations, and provide personalized guidance based on your full health picture.
+
+---
+
+⌚ [Fund my next wearable obsession](https://spaltrowitz.github.io/#support)
+
