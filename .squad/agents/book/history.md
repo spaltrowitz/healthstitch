@@ -16,3 +16,5 @@
 - **Error framing:** Always lead with what the user wanted ("Couldn't load your readiness data") before appending the technical message.
 - **Tab labels:** Task-oriented and short: "Today's Readiness", "Trends", "Apple vs WHOOP", "Workouts".
 - **Key files:** App.jsx (auth + nav), MorningCheckIn.jsx, TrendsDashboard.jsx, DeviceComparison.jsx, WorkoutLog.jsx, DateRangeSelector.jsx, SourceToggle.jsx
+- **Legal pages:** `frontend/public/privacy.html` and `frontend/public/terms.html` are standalone HTML (not React routes) so they load without the SPA. Inline CSS, no dependencies. Styled to match Apple-esque clean aesthetic. Cross-linked in footers. Contact email: shari@healthstitch.dev.
+- **Public directory:** Vite serves `frontend/public/` as static assets. With `base: '/healthstitch/'`, files are accessible at `/healthstitch/privacy.html`. For WHOOP OAuth registration, the privacy URL is `https://healthstitch.yourdomain.com/healthstitch/privacy.html`.

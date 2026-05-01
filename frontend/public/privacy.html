@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — HealthStitch</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.7;
+      color: #1d1d1f;
+      background: #fafafa;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      color: #6e6e73;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-top: 2rem;
+      margin-bottom: 0.5rem;
+      color: #1d1d1f;
+    }
+    p, li {
+      font-size: 0.95rem;
+      color: #424245;
+    }
+    p { margin-bottom: 0.75rem; }
+    ul {
+      margin: 0.5rem 0 1rem 1.25rem;
+    }
+    li { margin-bottom: 0.35rem; }
+    .footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #e8e8ed;
+      font-size: 0.85rem;
+      color: #86868b;
+    }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Last updated: July 15, 2025</p>
+
+    <h2>What HealthStitch Is</h2>
+    <p>
+      HealthStitch is a personal, self-hosted health data dashboard. It pulls together
+      data from wearable devices — currently WHOOP, with Apple Watch and others planned —
+      so you can see your readiness, sleep, recovery, and workout trends in one place.
+    </p>
+    <p>
+      This is a personal project, not a commercial product. It runs on hardware owned
+      and operated by the user. There is no cloud service, no hosted backend, and no
+      multi-tenant infrastructure.
+    </p>
+
+    <h2>What Data We Collect</h2>
+    <p>
+      HealthStitch accesses the following data from connected devices via their official APIs:
+    </p>
+    <ul>
+      <li>Sleep records (duration, stages, sleep/wake times)</li>
+      <li>Recovery and readiness scores</li>
+      <li>Heart rate and heart rate variability measurements</li>
+      <li>Workout and activity data (strain, duration, calories)</li>
+      <li>Body measurements (e.g., resting heart rate, SpO2, respiratory rate)</li>
+    </ul>
+    <p>
+      HealthStitch also stores OAuth tokens required to authenticate with device APIs
+      (e.g., WHOOP). These tokens are stored locally and used solely to fetch your health data.
+    </p>
+
+    <h2>How Your Data Is Used</h2>
+    <p>
+      Your data is used for one purpose: displaying your personal health trends on your
+      own dashboard. Specifically:
+    </p>
+    <ul>
+      <li>Computing baselines and trend comparisons across devices</li>
+      <li>Generating your morning readiness check-in</li>
+      <li>Showing workout load, sleep quality, and recovery over time</li>
+    </ul>
+    <p>
+      Your data is never used for advertising, analytics, profiling, or any purpose
+      other than showing it back to you.
+    </p>
+
+    <h2>Where Your Data Is Stored</h2>
+    <p>
+      All data is stored locally on your own server in a SQLite database. Nothing is
+      sent to a cloud service, external database, or third-party server. There is no
+      remote backup or replication unless you configure it yourself.
+    </p>
+
+    <h2>Data Sharing</h2>
+    <p>
+      HealthStitch does not share your data with anyone. Period. There are:
+    </p>
+    <ul>
+      <li>No third-party analytics or tracking scripts</li>
+      <li>No advertising networks</li>
+      <li>No data brokers or partners</li>
+      <li>No telemetry or usage reporting</li>
+    </ul>
+    <p>
+      The only external network calls HealthStitch makes are to the device APIs
+      (e.g., WHOOP's API at <code>api.prod.whoop.com</code>) to fetch your data.
+    </p>
+
+    <h2>Security</h2>
+    <p>
+      Because HealthStitch is self-hosted, security depends on your own server
+      configuration. The application itself takes these precautions:
+    </p>
+    <ul>
+      <li>OAuth tokens are stored server-side and never exposed to the browser</li>
+      <li>API endpoints require authentication</li>
+      <li>No default credentials — you configure your own</li>
+      <li>HTTPS is supported and recommended for any network-exposed deployment</li>
+    </ul>
+
+    <h2>Third-Party Services</h2>
+    <p>
+      HealthStitch integrates with the following third-party APIs:
+    </p>
+    <ul>
+      <li><strong>WHOOP</strong> — to sync sleep, recovery, workout, and body measurement data.
+        WHOOP's own privacy policy applies to data on their platform:
+        <a href="https://www.whoop.com/privacy/" target="_blank" rel="noopener">whoop.com/privacy</a></li>
+    </ul>
+    <p>
+      HealthStitch does not send your data <em>to</em> these services — it only reads
+      data <em>from</em> them using your authorized credentials.
+    </p>
+
+    <h2>Data Retention</h2>
+    <p>
+      Your data is retained in the local database indefinitely, or until you delete it.
+      You have full control over the database and can delete any or all data at any time.
+      Revoking a device's OAuth connection stops future data sync but does not
+      automatically delete previously synced data.
+    </p>
+
+    <h2>Your Rights</h2>
+    <p>
+      Since you host HealthStitch yourself, you have complete control over your data.
+      You can view, export, modify, or delete any data at any time by accessing the
+      SQLite database directly.
+    </p>
+
+    <h2>Children's Privacy</h2>
+    <p>
+      HealthStitch is a personal tool and is not directed at children under 13.
+    </p>
+
+    <h2>Changes to This Policy</h2>
+    <p>
+      If this policy changes, the "Last updated" date at the top will be revised. Since
+      this is a self-hosted application, you control when and whether to update.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      If you have questions about this privacy policy or HealthStitch's data practices,
+      reach the project maintainer at:
+    </p>
+    <p>
+      <strong>Email:</strong> <a href="mailto:shari@healthstitch.dev">shari@healthstitch.dev</a>
+    </p>
+
+    <div class="footer">
+      <p>&copy; 2025 HealthStitch. This is a personal, self-hosted project.</p>
+      <p><a href="terms.html">Terms of Service</a></p>
+    </div>
+  </div>
+</body>
+</html>
