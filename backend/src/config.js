@@ -1,5 +1,5 @@
-const path = require('path');
 const dotenv = require('dotenv');
+const path = require('path');
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -9,7 +9,7 @@ const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
 module.exports = {
   PORT,
   JWT_SECRET: process.env.JWT_SECRET || 'dev_secret_change_me',
-  DB_PATH: path.resolve(__dirname, '..', process.env.DB_PATH || '../data/health_dashboard.sqlite'),
+  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://localhost:5432/healthstitch',
   WHOOP_CLIENT_ID: process.env.WHOOP_CLIENT_ID || '',
   WHOOP_CLIENT_SECRET: process.env.WHOOP_CLIENT_SECRET || '',
   WHOOP_REDIRECT_URI: process.env.WHOOP_REDIRECT_URI || `${BACKEND_URL}/api/whoop/callback`,

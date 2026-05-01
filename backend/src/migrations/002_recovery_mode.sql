@@ -2,10 +2,10 @@ CREATE TABLE IF NOT EXISTS recovery_periods (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   reason TEXT NOT NULL,
-  start_date TEXT NOT NULL,
-  end_date TEXT,
+  start_date DATE NOT NULL,
+  end_date DATE,
   notes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
