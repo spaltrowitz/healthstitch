@@ -46,3 +46,11 @@
 ### 2026-04-30 — Apple Watch Phase 2 & Performance Optimizations Spawned
 
 📌 **Team update (2026-04-30T12:10:00Z):** Apple Watch Phase 2 spawned with Wash, Kaylee, River. Phase 2 adds background observers, anchored queries, Keychain JWT, BGAppRefreshTask, sync-status endpoint. Kaylee building SyncStatus UI component with 60s auto-refresh and green/amber/red freshness indicators. River adding expression indexes on date columns and pre-computed training_load_aggregates for O(1) workouts queries. — Scribe
+
+### 2026-07 — VITE_API_URL for Cloudflare Tunnel support
+
+- **`frontend/src/config.js`**: New shared config exporting `API_BASE = VITE_API_URL + '/api'`. Defaults to empty string (same-origin) for local dev, set to tunnel URL for remote access.
+- **`frontend/src/api/client.js`**: Now imports `API_BASE` from `config.js` instead of defining its own. All `apiRequest` and `apiUpload` calls automatically use the correct origin.
+- **`.env.example`**: Added `VITE_API_URL=` with usage comment. No hardcoded tunnel URLs anywhere.
+- **`vite.config.js`**: Added clarifying comment that proxy is local-dev only. No functional changes needed — proxy still works when `VITE_API_URL` is unset.
+- **Pattern**: All API calls already go through `client.js` — no direct `fetch()` calls in components. Single point of change.

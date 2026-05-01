@@ -430,6 +430,19 @@ Used `shari@healthstitch.dev` as the contact address.
 
 **Manual Steps (Shari does in Xcode/App Store Connect):**
 1. Create app record in App Store Connect
+
+---
+
+## VITE_API_URL as Backend Origin Config
+
+**Date:** 2026-05  
+**By:** Kaylee  
+
+**Decision:** All frontend API calls derive their base URL from `VITE_API_URL` env var via a shared `frontend/src/config.js`. The var holds the backend origin (e.g. a Cloudflare Tunnel URL). When unset, it defaults to empty string (same-origin), so the Vite dev proxy still works transparently.
+
+**Rationale:** Cloudflare Tunnel URLs change on every restart. Hardcoding them would break constantly. An env var lets any team member point the frontend at any backend — local, tunnel, or deployed — without code changes.
+
+**Affects:** All agents doing frontend work. If you add a new API call, import `API_BASE` from `../config` (or use `apiRequest`/`apiUpload` from `api/client.js` which already does this).
 2. Set Bundle ID in Xcode (e.g., `com.healthstitch.companion`)
 3. Enable automatic signing
 4. Archive and upload to App Store Connect
