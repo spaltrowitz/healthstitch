@@ -5,6 +5,8 @@ const db = require('./client');
 const migrationsDir = path.resolve(__dirname, '../migrations');
 
 async function migrate() {
+  await db.query('SET search_path TO healthstitch, public');
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id TEXT PRIMARY KEY,

@@ -33,7 +33,7 @@ router.post('/whoop', requireAuth, upload.single('file'), async (req, res) => {
 
   try {
     const counts = await parseWhoopExport(req.user.userId, req.file.path);
-    computeBaselines(req.user.userId);
+    await computeBaselines(req.user.userId);
     cleanupFile(req.file.path);
     return res.json({ ok: true, ingested: counts });
   } catch (error) {
@@ -47,7 +47,7 @@ router.post('/apple-health', requireAuth, upload.single('file'), async (req, res
 
   try {
     const counts = await parseAppleHealthExport(req.user.userId, req.file.path);
-    computeBaselines(req.user.userId);
+    await computeBaselines(req.user.userId);
     cleanupFile(req.file.path);
     return res.json({ ok: true, ingested: counts });
   } catch (error) {

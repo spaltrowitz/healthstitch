@@ -25,9 +25,9 @@ router.get('/callback', async (req, res) => {
   try {
     const parsed = jwt.verify(state, JWT_SECRET);
     const tokenData = await exchangeCodeForToken(code);
-    persistToken(parsed.userId, tokenData);
+    await persistToken(parsed.userId, tokenData);
     await syncWhoopData(parsed.userId);
-    computeBaselines(parsed.userId);
+    await computeBaselines(parsed.userId);
 
     return res.send(`WHOOP connected. You can close this window and return to ${FRONTEND_URL}.`);
   } catch (error) {
@@ -40,15 +40,15 @@ router.post('/sync', requireAuth, async (req, res) => {
 
   try {
     const counts = await syncWhoopData(req.user.userId, since);
-    computeBaselines(req.user.userId);
+    await computeBaselines(req.user.userId);
     return res.json({ ok: true, counts });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 });
 
-router.get('/sync-status', requireAuth, (req, res) => {
-  const state = getSyncState(req.user.userId);
+router.get('/sync-status', requireAuth, async (req, res) => {
+  const state = await getSyncState(req.user.userId);
   if (!state) {
     return res.json({ synced: false, message: 'No sync history yet' });
   }

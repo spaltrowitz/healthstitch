@@ -6,42 +6,36 @@ const { computeBaselines } = require('../services/baselineService');
 
 const router = express.Router();
 
-const upsertSyncStmt = db.prepare(`
-  INSERT INTO apple_sync_state (user_id, last_sync_at, last_sync_status, metric_counts_json)
-  VALUES (?, ?, 'success', ?)
-  ON CONFLICT(user_id) DO UPDATE SET
-    last_sync_at = excluded.last_sync_at,
-    last_sync_status = 'success',
-    metric_counts_json = excluded.metric_counts_json,
-    consecutive_failures = 0,
-    last_error = NULL,
-    updated_at = datetime('now')
-`);
-
-const getSyncStateStmt = db.prepare(`
-  SELECT last_sync_at, last_sync_status, metric_counts_json, consecutive_failures, last_error, updated_at
-  FROM apple_sync_state
-  WHERE user_id = ?
-`);
-
-router.post('/ingest', requireAuth, (req, res) => {
+router.post('/ingest', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const metrics = Array.isArray(req.body.metrics) ? req.body.metrics : [];
   const sleepSessions = Array.isArray(req.body.sleep_sessions) ? req.body.sleep_sessions : [];
   const workouts = Array.isArray(req.body.workouts) ? req.body.workouts : [];
   const lastSyncAt = req.body.last_sync_at ? new Date(req.body.last_sync_at).toISOString() : new Date().toISOString();
 
-  ingestMetricBatch(userId, 'apple_watch', metrics);
-  ingestSleepBatch(userId, 'apple_watch', sleepSessions);
-  ingestWorkoutBatch(userId, 'apple_watch', workouts);
+  await ingestMetricBatch(userId, 'apple_watch', metrics);
+  await ingestSleepBatch(userId, 'apple_watch', sleepSessions);
+  await ingestWorkoutBatch(userId, 'apple_watch', workouts);
 
   const metricCounts = JSON.stringify({
     metrics: metrics.length,
     sleep_sessions: sleepSessions.length,
     workouts: workouts.length
   });
-  upsertSyncStmt.run(userId, lastSyncAt, metricCounts);
-  computeBaselines(userId);
+
+  await db.query(`
+    INSERT INTO apple_sync_state (user_id, last_sync_at, last_sync_status, metric_counts_json)
+    VALUES ($1, $2, 'success', $3)
+    ON CONFLICT(user_id) DO UPDATE SET
+      last_sync_at = EXCLUDED.last_sync_at,
+      last_sync_status = 'success',
+      metric_counts_json = EXCLUDED.metric_counts_json,
+      consecutive_failures = 0,
+      last_error = NULL,
+      updated_at = NOW()
+  `, [userId, lastSyncAt, metricCounts]);
+
+  await computeBaselines(userId);
 
   return res.json({
     ok: true,
@@ -54,10 +48,15 @@ router.post('/ingest', requireAuth, (req, res) => {
   });
 });
 
-router.get('/sync-status', requireAuth, (req, res) => {
+router.get('/sync-status', requireAuth, async (req, res) => {
   const userId = req.user.userId;
-  const row = getSyncStateStmt.get(userId);
+  const { rows } = await db.query(`
+    SELECT last_sync_at, last_sync_status, metric_counts_json, consecutive_failures, last_error, updated_at
+    FROM apple_sync_state
+    WHERE user_id = $1
+  `, [userId]);
 
+  const row = rows[0];
   if (!row) {
     return res.json({
       connected: false,

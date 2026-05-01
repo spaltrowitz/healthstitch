@@ -41,7 +41,7 @@ function col(row, headers, candidates) {
   return key ? row[key] : undefined;
 }
 
-function parseCyclesCsv(userId, content) {
+async function parseCyclesCsv(userId, content) {
   const records = parse(content, { columns: true, skip_empty_lines: true, relax_column_count: true });
   if (records.length === 0) return { metrics: 0 };
 
@@ -78,11 +78,11 @@ function parseCyclesCsv(userId, content) {
     }
   }
 
-  ingestMetricBatch(userId, 'whoop', metrics);
+  await ingestMetricBatch(userId, 'whoop', metrics);
   return { metrics: metrics.length };
 }
 
-function parseSleepsCsv(userId, content) {
+async function parseSleepsCsv(userId, content) {
   const records = parse(content, { columns: true, skip_empty_lines: true, relax_column_count: true });
   if (records.length === 0) return { sleeps: 0 };
 
@@ -118,11 +118,11 @@ function parseSleepsCsv(userId, content) {
     });
   }
 
-  ingestSleepBatch(userId, 'whoop', sleeps);
+  await ingestSleepBatch(userId, 'whoop', sleeps);
   return { sleeps: sleeps.length };
 }
 
-function parseWorkoutsCsv(userId, content) {
+async function parseWorkoutsCsv(userId, content) {
   const records = parse(content, { columns: true, skip_empty_lines: true, relax_column_count: true });
   if (records.length === 0) return { workouts: 0 };
 
@@ -154,7 +154,7 @@ function parseWorkoutsCsv(userId, content) {
     });
   }
 
-  ingestWorkoutBatch(userId, 'whoop', workouts);
+  await ingestWorkoutBatch(userId, 'whoop', workouts);
   return { workouts: workouts.length };
 }
 
@@ -198,15 +198,15 @@ async function parseWhoopExport(userId, filePath) {
       const csvFiles = findCsvFiles(extractDir);
 
       if (csvFiles.cycles) {
-        const result = parseCyclesCsv(userId, fs.readFileSync(csvFiles.cycles, 'utf-8'));
+        const result = await parseCyclesCsv(userId, fs.readFileSync(csvFiles.cycles, 'utf-8'));
         counts.metrics += result.metrics;
       }
       if (csvFiles.sleeps) {
-        const result = parseSleepsCsv(userId, fs.readFileSync(csvFiles.sleeps, 'utf-8'));
+        const result = await parseSleepsCsv(userId, fs.readFileSync(csvFiles.sleeps, 'utf-8'));
         counts.sleeps += result.sleeps;
       }
       if (csvFiles.workouts) {
-        const result = parseWorkoutsCsv(userId, fs.readFileSync(csvFiles.workouts, 'utf-8'));
+        const result = await parseWorkoutsCsv(userId, fs.readFileSync(csvFiles.workouts, 'utf-8'));
         counts.workouts += result.workouts;
       }
 
@@ -221,13 +221,13 @@ async function parseWhoopExport(userId, filePath) {
     const firstLine = content.split('\n')[0].toLowerCase();
 
     if (firstLine.includes('sleep onset') || firstLine.includes('nap')) {
-      const result = parseSleepsCsv(userId, content);
+      const result = await parseSleepsCsv(userId, content);
       counts.sleeps += result.sleeps;
     } else if (firstLine.includes('workout start') || firstLine.includes('activity name')) {
-      const result = parseWorkoutsCsv(userId, content);
+      const result = await parseWorkoutsCsv(userId, content);
       counts.workouts += result.workouts;
     } else if (firstLine.includes('recovery') || firstLine.includes('strain') || firstLine.includes('day strain')) {
-      const result = parseWorkoutsCsv(userId, content);
+      const result = await parseWorkoutsCsv(userId, content);
       counts.workouts += result.workouts;
     } else {
       throw new Error('Unrecognized CSV format. Expected WHOOP physiological_cycles, sleeps, or workouts CSV.');

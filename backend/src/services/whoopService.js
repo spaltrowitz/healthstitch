@@ -8,24 +8,6 @@ const WHOOP_AUTH_URL = 'https://api.prod.whoop.com/oauth/oauth2/auth';
 const WHOOP_TOKEN_URL = 'https://api.prod.whoop.com/oauth/oauth2/token';
 const WHOOP_API_BASE = 'https://api.prod.whoop.com/developer/v2';
 
-const tokenUpsertStmt = db.prepare(`
-  INSERT INTO whoop_tokens (id, user_id, access_token, refresh_token, expires_at, scope)
-  VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(user_id)
-  DO UPDATE SET
-    access_token = excluded.access_token,
-    refresh_token = excluded.refresh_token,
-    expires_at = excluded.expires_at,
-    scope = excluded.scope,
-    updated_at = datetime('now')
-`);
-
-const tokenByUserStmt = db.prepare(`
-  SELECT user_id, access_token, refresh_token, expires_at
-  FROM whoop_tokens
-  WHERE user_id = ?
-`);
-
 function getWhoopAuthUrl(state) {
   const params = new URLSearchParams({
     client_id: WHOOP_CLIENT_ID,
@@ -103,21 +85,37 @@ async function refreshAccessToken(refreshToken) {
   return response.data;
 }
 
-function persistToken(userId, tokenData) {
+async function persistToken(userId, tokenData) {
   const expiresAt = new Date(Date.now() + Number(tokenData.expires_in || 0) * 1000).toISOString();
 
-  tokenUpsertStmt.run(
+  await db.query(`
+    INSERT INTO whoop_tokens (id, user_id, access_token, refresh_token, expires_at, scope)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT(user_id)
+    DO UPDATE SET
+      access_token = EXCLUDED.access_token,
+      refresh_token = EXCLUDED.refresh_token,
+      expires_at = EXCLUDED.expires_at,
+      scope = EXCLUDED.scope,
+      updated_at = NOW()
+  `, [
     randomUUID(),
     userId,
     tokenData.access_token,
     tokenData.refresh_token,
     expiresAt,
     tokenData.scope || null
-  );
+  ]);
 }
 
 async function getValidAccessToken(userId) {
-  const token = tokenByUserStmt.get(userId);
+  const { rows } = await db.query(`
+    SELECT user_id, access_token, refresh_token, expires_at
+    FROM whoop_tokens
+    WHERE user_id = $1
+  `, [userId]);
+
+  const token = rows[0];
   if (!token) throw new Error('WHOOP account not connected');
 
   const expiresAtMs = new Date(token.expires_at).getTime();
@@ -126,7 +124,7 @@ async function getValidAccessToken(userId) {
   }
 
   const refreshed = await refreshAccessToken(token.refresh_token);
-  persistToken(userId, refreshed);
+  await persistToken(userId, refreshed);
   return refreshed.access_token;
 }
 
@@ -193,7 +191,7 @@ function mapWhoopSleep(records) {
       const stage = score.stage_summary || item.stage_summary || {};
       const startAt = toIso(item.start || item.start_time || item.created_at);
       const endAt = toIso(item.end || item.end_time || item.updated_at);
-      const totalDuration = Number(score.total_in_bed_time_milli ?? item.total_in_bed_time_milli);
+      const totalDuration = Number(stage.total_in_bed_time_milli ?? score.total_in_bed_time_milli ?? item.total_in_bed_time_milli);
 
       if (!startAt || !endAt || !Number.isFinite(totalDuration)) return null;
 
@@ -204,18 +202,18 @@ function mapWhoopSleep(records) {
         start_at: startAt,
         end_at: endAt,
         total_duration_ms: totalDuration,
-        slow_wave_ms: Number(stage.slow_wave_sleep_time_milli ?? item.slow_wave_sleep_time_milli) || null,
-        rem_ms: Number(stage.rem_sleep_time_milli ?? item.rem_sleep_time_milli) || null,
-        light_ms: Number(stage.light_sleep_time_milli ?? item.light_sleep_time_milli) || null,
-        awake_ms: Number(stage.awake_time_milli ?? item.awake_time_milli) || null,
+        slow_wave_ms: Number(stage.total_slow_wave_sleep_time_milli ?? stage.slow_wave_sleep_time_milli ?? item.slow_wave_sleep_time_milli) || null,
+        rem_ms: Number(stage.total_rem_sleep_time_milli ?? stage.rem_sleep_time_milli ?? item.rem_sleep_time_milli) || null,
+        light_ms: Number(stage.total_light_sleep_time_milli ?? stage.light_sleep_time_milli ?? item.light_sleep_time_milli) || null,
+        awake_ms: Number(stage.total_awake_time_milli ?? stage.awake_time_milli ?? item.awake_time_milli) || null,
         sleep_performance: Number(score.sleep_performance_percentage ?? item.sleep_performance_percentage) || null,
-        sleep_need_ms: Number(score.sleep_needed?.need_from_sleep_debt_milli ?? 0)
-          + Number(score.sleep_needed?.need_from_strain_milli ?? 0)
+        sleep_need_ms: Number(score.sleep_needed?.need_from_sleep_debt_milli ?? score.sleep_needed?.need_from_sleep_debt ?? 0)
+          + Number(score.sleep_needed?.need_from_recent_strain_milli ?? score.sleep_needed?.need_from_strain_milli ?? 0)
           + Number(score.sleep_needed?.baseline_milli ?? item.sleep_need_milli ?? 0),
         sleep_consistency: Number(score.sleep_consistency_percentage ?? item.sleep_consistency_percentage) || null,
         sleep_efficiency: Number(score.sleep_efficiency_percentage ?? item.sleep_efficiency_percentage) || null,
         respiratory_rate: Number(score.respiratory_rate ?? item.respiratory_rate) || null,
-        disturbance_count: Number(score.disturbance_count ?? item.disturbance_count) || null,
+        disturbance_count: Number(stage.disturbance_count ?? score.disturbance_count ?? item.disturbance_count) || null,
         external_id: item.id || null,
         metadata: item
       };
@@ -270,21 +268,25 @@ function mapWhoopWorkouts(records) {
     .map((item) => {
       const startAt = toIso(item.start || item.start_time);
       const endAt = toIso(item.end || item.end_time);
-      const durationMs = Number(item.duration_milli ?? item.duration_ms);
-      if (!startAt || !endAt || !Number.isFinite(durationMs)) return null;
+      if (!startAt || !endAt) return null;
 
+      const durationMs = Number(item.duration_milli ?? item.duration_ms) ||
+        (new Date(endAt).getTime() - new Date(startAt).getTime());
+      if (!Number.isFinite(durationMs) || durationMs <= 0) return null;
+
+      const score = item.score || {};
       return {
         sport_type: item.sport_name || item.sport_type || 'Workout',
         start_at: startAt,
         end_at: endAt,
         duration_ms: durationMs,
-        avg_hr: Number(item.average_heart_rate) || null,
-        max_hr: Number(item.max_heart_rate) || null,
-        strain: Number(item.score?.strain ?? item.strain) || null,
-        energy_kj: Number(item.score?.kilojoule ?? item.kilojoule) || null,
-        energy_kcal: Number(item.score?.kilojoule ?? item.kilojoule) ? Number(item.score?.kilojoule ?? item.kilojoule) * 0.239006 : null,
-        distance_m: Number(item.distance_meter ?? item.distance_m) || null,
-        hr_zones: item.score?.zone_duration || item.zone_duration || null,
+        avg_hr: Number(score.average_heart_rate ?? item.average_heart_rate) || null,
+        max_hr: Number(score.max_heart_rate ?? item.max_heart_rate) || null,
+        strain: Number(score.strain ?? item.strain) || null,
+        energy_kj: Number(score.kilojoule ?? item.kilojoule) || null,
+        energy_kcal: Number(score.kilojoule ?? item.kilojoule) ? Number(score.kilojoule ?? item.kilojoule) * 0.239006 : null,
+        distance_m: Number(score.distance_meter ?? item.distance_meter ?? item.distance_m) || null,
+        hr_zones: score.zone_duration || item.zone_duration || null,
         external_id: item.id || null,
         metadata: item
       };
@@ -298,14 +300,14 @@ async function syncWhoopData(userId, since) {
   const [recovery, sleep, strain, workouts] = await Promise.all([
     fetchPaginated(accessToken, '/recovery', since),
     fetchPaginated(accessToken, '/activity/sleep', since),
-    fetchPaginated(accessToken, '/activity/cycle', since),
+    fetchPaginated(accessToken, '/cycle', since),
     fetchPaginated(accessToken, '/activity/workout', since)
   ]);
 
-  ingestMetricBatch(userId, 'whoop', mapWhoopRecovery(recovery));
-  ingestSleepBatch(userId, 'whoop', mapWhoopSleep(sleep));
-  ingestMetricBatch(userId, 'whoop', mapWhoopStrain(strain));
-  ingestWorkoutBatch(userId, 'whoop', mapWhoopWorkouts(workouts));
+  await ingestMetricBatch(userId, 'whoop', mapWhoopRecovery(recovery));
+  await ingestSleepBatch(userId, 'whoop', mapWhoopSleep(sleep));
+  await ingestMetricBatch(userId, 'whoop', mapWhoopStrain(strain));
+  await ingestWorkoutBatch(userId, 'whoop', mapWhoopWorkouts(workouts));
 
   return {
     recovery: recovery.length,

@@ -121,17 +121,19 @@ function parseAppleHealthExport(userId, filePath) {
     let workoutBatch = [];
     const sleepEntries = [];
     const dailyActiveEnergy = {};
+    const allMetricBatches = [];
+    const allWorkoutBatches = [];
 
     function flushMetrics() {
       if (metricBatch.length === 0) return;
-      ingestMetricBatch(userId, 'apple_watch', metricBatch);
+      allMetricBatches.push(metricBatch);
       counts.metrics += metricBatch.length;
       metricBatch = [];
     }
 
     function flushWorkouts() {
       if (workoutBatch.length === 0) return;
-      ingestWorkoutBatch(userId, 'apple_watch', workoutBatch);
+      allWorkoutBatches.push(workoutBatch);
       counts.workouts += workoutBatch.length;
       workoutBatch = [];
     }
@@ -233,31 +235,42 @@ function parseAppleHealthExport(userId, filePath) {
       }
     });
 
-    parser.on('end', () => {
-      flushMetrics();
-      flushWorkouts();
+    parser.on('end', async () => {
+      try {
+        flushMetrics();
+        flushWorkouts();
 
-      // Flush aggregated daily active energy as one record per day
-      const energyRecords = Object.entries(dailyActiveEnergy).map(([day, total]) => ({
-        metric_type: 'active_energy',
-        value: Math.round(total * 100) / 100,
-        unit: 'kcal',
-        recorded_at: `${day}T23:59:59.000Z`,
-        external_id: `apple_export:active_energy:${day}`
-      }));
-      if (energyRecords.length > 0) {
-        ingestMetricBatch(userId, 'apple_watch', energyRecords);
-        counts.metrics += energyRecords.length;
+        for (const batch of allMetricBatches) {
+          await ingestMetricBatch(userId, 'apple_watch', batch);
+        }
+        for (const batch of allWorkoutBatches) {
+          await ingestWorkoutBatch(userId, 'apple_watch', batch);
+        }
+
+        const energyRecords = Object.entries(dailyActiveEnergy).map(([day, total]) => ({
+          metric_type: 'active_energy',
+          value: Math.round(total * 100) / 100,
+          unit: 'kcal',
+          recorded_at: `${day}T23:59:59.000Z`,
+          external_id: `apple_export:active_energy:${day}`
+        }));
+        if (energyRecords.length > 0) {
+          await ingestMetricBatch(userId, 'apple_watch', energyRecords);
+          counts.metrics += energyRecords.length;
+        }
+
+        const sessions = aggregateSleepSessions(sleepEntries);
+        if (sessions.length > 0) {
+          await ingestSleepBatch(userId, 'apple_watch', sessions);
+          counts.sleeps = sessions.length;
+        }
+
+        if (extractDir) fs.rmSync(extractDir, { recursive: true, force: true });
+        resolve(counts);
+      } catch (err) {
+        if (extractDir) fs.rmSync(extractDir, { recursive: true, force: true });
+        reject(err);
       }
-
-      const sessions = aggregateSleepSessions(sleepEntries);
-      if (sessions.length > 0) {
-        ingestSleepBatch(userId, 'apple_watch', sessions);
-        counts.sleeps = sessions.length;
-      }
-
-      if (extractDir) fs.rmSync(extractDir, { recursive: true, force: true });
-      resolve(counts);
     });
 
     parser.on('error', (err) => {

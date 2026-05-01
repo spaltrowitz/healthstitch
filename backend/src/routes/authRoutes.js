@@ -8,10 +8,6 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-const createUserStmt = db.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)');
-const userByEmailStmt = db.prepare('SELECT id, email, password_hash FROM users WHERE email = ?');
-const userByIdStmt = db.prepare('SELECT id, email FROM users WHERE id = ?');
-
 router.post('/register', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
@@ -20,14 +16,14 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Email and password (min 8 chars) are required' });
   }
 
-  const existing = userByEmailStmt.get(email);
-  if (existing) {
+  const { rows: existing } = await db.query('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
+  if (existing.length > 0) {
     return res.status(409).json({ error: 'User already exists' });
   }
 
   const hash = await bcrypt.hash(password, 10);
   const userId = randomUUID();
-  createUserStmt.run(userId, email, hash);
+  await db.query('INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)', [userId, email, hash]);
 
   const token = jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: '7d' });
   return res.status(201).json({ token, user: { id: userId, email } });
@@ -37,7 +33,8 @@ router.post('/login', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
 
-  const user = userByEmailStmt.get(email);
+  const { rows } = await db.query('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
+  const user = rows[0];
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -51,8 +48,9 @@ router.post('/login', async (req, res) => {
   return res.json({ token, user: { id: user.id, email: user.email } });
 });
 
-router.get('/me', requireAuth, (req, res) => {
-  const user = userByIdStmt.get(req.user.userId);
+router.get('/me', requireAuth, async (req, res) => {
+  const { rows } = await db.query('SELECT id, email FROM users WHERE id = $1', [req.user.userId]);
+  const user = rows[0];
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }

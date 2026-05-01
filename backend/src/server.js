@@ -1,17 +1,26 @@
 const db = require('./db/client');
-require('./db/migrate');
+const migrate = require('./db/migrate');
 const { PORT } = require('./config');
 const app = require('./app');
 const { startScheduler } = require('./services/whoop-scheduler');
 
-const server = app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`);
+async function start() {
+  await migrate();
 
-  if (process.env.WHOOP_AUTO_SYNC !== 'false') {
-    startScheduler();
-  }
-});
+  const server = app.listen(PORT, () => {
+    console.log(`Backend listening on port ${PORT}`);
 
-process.on('SIGINT', () => {
-  server.close(() => db.close());
+    if (process.env.WHOOP_AUTO_SYNC !== 'false') {
+      startScheduler();
+    }
+  });
+
+  process.on('SIGINT', () => {
+    server.close(() => db.end());
+  });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

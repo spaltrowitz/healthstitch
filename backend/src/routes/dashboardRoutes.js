@@ -15,14 +15,15 @@ function sourceList(sourceFilter) {
   return ['apple_watch', 'whoop'];
 }
 
-function getBaseline(userId, metricType, windowDays, day) {
-  return db.prepare(`
+async function getBaseline(userId, metricType, windowDays, day) {
+  const { rows } = await db.query(`
     SELECT value, baseline_date
     FROM derived_baselines
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = ? AND window_days = ? AND baseline_date <= ?
+    WHERE user_id = $1 AND source = 'apple_watch' AND metric_type = $2 AND window_days = $3 AND baseline_date <= $4
     ORDER BY baseline_date DESC
     LIMIT 1
-  `).get(userId, metricType, windowDays, day);
+  `, [userId, metricType, windowDays, day]);
+  return rows[0] || null;
 }
 
 function pctDelta(value, baseline) {
@@ -30,17 +31,17 @@ function pctDelta(value, baseline) {
   return ((value - baseline) / baseline) * 100;
 }
 
-router.get('/morning-checkin', requireAuth, (req, res) => {
+router.get('/morning-checkin', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const day = String(req.query.date || dateString(0));
   const yesterday = dateString(-1);
 
-  // Check recovery mode
-  const activeRecovery = db.prepare(`
+  const { rows: recoveryRows } = await db.query(`
     SELECT id, reason, start_date, notes FROM recovery_periods
-    WHERE user_id = ? AND end_date IS NULL
+    WHERE user_id = $1 AND end_date IS NULL
     ORDER BY start_date DESC LIMIT 1
-  `).get(userId);
+  `, [userId]);
+  const activeRecovery = recoveryRows[0] || null;
 
   let recoveryMode = null;
   if (activeRecovery) {
@@ -53,71 +54,62 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
     };
   }
 
-  const whoopRecovery = db.prepare(`
+  const whoopRecovery = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+    WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'recovery_score' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, day])).rows[0]?.value ?? null;
 
-  const todayWhoopHrv = db.prepare(`
+  const todayWhoopHrv = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'hrv_rmssd' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+    WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'hrv_rmssd' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, day])).rows[0]?.value ?? null;
 
-  const todayAppleHrv = db.prepare(`
+  const todayAppleHrv = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'hrv_sdnn' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+    WHERE user_id = $1 AND source = 'apple_watch' AND metric_type = 'hrv_sdnn' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, day])).rows[0]?.value ?? null;
 
   const todayHrv = todayWhoopHrv ?? todayAppleHrv;
-  const hrvBaseline = getBaseline(userId, 'hrv_sdnn', 90, day)?.value ?? null;
+  const hrvBaseline = (await getBaseline(userId, 'hrv_sdnn', 90, day))?.value ?? null;
 
-  const todayWhoopRhr = db.prepare(`
+  const todayWhoopRhr = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+    WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'resting_hr' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, day])).rows[0]?.value ?? null;
 
-  const todayAppleRhr = db.prepare(`
+  const todayAppleRhr = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'apple_watch' AND metric_type = 'resting_hr' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, day)?.value ?? null;
+    WHERE user_id = $1 AND source = 'apple_watch' AND metric_type = 'resting_hr' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, day])).rows[0]?.value ?? null;
 
   const todayRhr = todayWhoopRhr ?? todayAppleRhr;
-  const rhrBaseline = getBaseline(userId, 'resting_hr', 30, day)?.value ?? null;
+  const rhrBaseline = (await getBaseline(userId, 'resting_hr', 30, day))?.value ?? null;
 
-  const whoopSleep = db.prepare(`
+  const whoopSleep = (await db.query(`
     SELECT * FROM sleep_records
-    WHERE user_id = ? AND source = 'whoop' AND sleep_date IN (?, ?)
-    ORDER BY sleep_date DESC, end_at DESC
-    LIMIT 1
-  `).get(userId, day, yesterday);
+    WHERE user_id = $1 AND source = 'whoop' AND sleep_date IN ($2, $3)
+    ORDER BY sleep_date DESC, end_at DESC LIMIT 1
+  `, [userId, day, yesterday])).rows[0] || null;
 
-  const appleSleepAvg = getBaseline(userId, 'sleep_duration', 90, day)?.value ?? null;
+  const appleSleepAvg = (await getBaseline(userId, 'sleep_duration', 90, day))?.value ?? null;
   const sleepDebtMs = whoopSleep ? Math.max((whoopSleep.sleep_need_ms || 0) - whoopSleep.total_duration_ms, 0) : null;
 
-  const whoopStrainYesterday = db.prepare(`
+  const whoopStrainYesterday = (await db.query(`
     SELECT value FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'daily_strain' AND date(recorded_at) = ?
-    ORDER BY recorded_at DESC
-    LIMIT 1
-  `).get(userId, yesterday)?.value ?? null;
+    WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'daily_strain' AND DATE(recorded_at) = $2
+    ORDER BY recorded_at DESC LIMIT 1
+  `, [userId, yesterday])).rows[0]?.value ?? null;
 
-  const appleWorkoutYesterday = db.prepare(`
-    SELECT sport_type, duration_ms
-    FROM workout_records
-    WHERE user_id = ? AND source = 'apple_watch' AND date(start_at) = ?
-    ORDER BY duration_ms DESC
-    LIMIT 1
-  `).get(userId, yesterday);
+  const appleWorkoutYesterday = (await db.query(`
+    SELECT sport_type, duration_ms FROM workout_records
+    WHERE user_id = $1 AND source = 'apple_watch' AND DATE(start_at) = $2
+    ORDER BY duration_ms DESC LIMIT 1
+  `, [userId, yesterday])).rows[0] || null;
 
   let recommendation = 'Moderate activity';
   if (recoveryMode) {
@@ -169,62 +161,58 @@ router.get('/morning-checkin', requireAuth, (req, res) => {
   });
 });
 
-router.get('/score-explainer', requireAuth, (req, res) => {
+router.get('/score-explainer', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const day = String(req.query.date || dateString(0));
   const yesterday = dateString(-1);
 
-  // Get sleep from both sources
-  const appleSleep = db.prepare(`
+  const appleSleep = (await db.query(`
     SELECT total_duration_ms, slow_wave_ms, rem_ms, light_ms, awake_ms
-    FROM sleep_records WHERE user_id = ? AND source = 'apple_watch' AND sleep_date = ?
+    FROM sleep_records WHERE user_id = $1 AND source = 'apple_watch' AND sleep_date = $2
     ORDER BY end_at DESC LIMIT 1
-  `).get(userId, day);
+  `, [userId, day])).rows[0] || null;
 
-  const whoopSleep = db.prepare(`
+  const whoopSleep = (await db.query(`
     SELECT total_duration_ms, slow_wave_ms, rem_ms, light_ms, awake_ms,
       sleep_performance, sleep_need_ms, sleep_efficiency, sleep_consistency, respiratory_rate
-    FROM sleep_records WHERE user_id = ? AND source = 'whoop' AND sleep_date = ?
+    FROM sleep_records WHERE user_id = $1 AND source = 'whoop' AND sleep_date = $2
       AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
     ORDER BY end_at DESC LIMIT 1
-  `).get(userId, day);
+  `, [userId, day])).rows[0] || null;
 
-  // Get vitals from both sources
-  function getMetric(source, metricType) {
-    return db.prepare(`
+  async function getMetric(source, metricType) {
+    return (await db.query(`
       SELECT value FROM metric_records
-      WHERE user_id = ? AND source = ? AND metric_type = ? AND date(recorded_at) = ?
+      WHERE user_id = $1 AND source = $2 AND metric_type = $3 AND DATE(recorded_at) = $4
       ORDER BY recorded_at DESC LIMIT 1
-    `).get(userId, source, metricType, day)?.value ?? null;
+    `, [userId, source, metricType, day])).rows[0]?.value ?? null;
   }
 
-  // Get 7-day averages for context
-  function getAvg7d(source, metricType) {
-    return db.prepare(`
-      SELECT ROUND(AVG(value), 2) as avg FROM metric_records
-      WHERE user_id = ? AND source = ? AND metric_type = ?
-        AND date(recorded_at) BETWEEN date(?, '-6 days') AND ?
-    `).get(userId, source, metricType, day, day)?.avg ?? null;
+  async function getAvg7d(source, metricType) {
+    return (await db.query(`
+      SELECT ROUND(AVG(value)::numeric, 2) as avg FROM metric_records
+      WHERE user_id = $1 AND source = $2 AND metric_type = $3
+        AND DATE(recorded_at) BETWEEN (CAST($4 AS DATE) - INTERVAL '6 days')::date AND CAST($5 AS DATE)
+    `, [userId, source, metricType, day, day])).rows[0]?.avg ?? null;
   }
 
-  const recoveryScore = getMetric('whoop', 'recovery_score');
-  const whoopHrv = getMetric('whoop', 'hrv_rmssd');
-  const appleHrv = getMetric('apple_watch', 'hrv_sdnn');
-  const whoopRhr = getMetric('whoop', 'resting_hr');
-  const appleRhr = getMetric('apple_watch', 'resting_hr');
-  const whoopSpo2 = getMetric('whoop', 'spo2');
-  const whoopRespRate = getMetric('whoop', 'respiratory_rate');
-  const appleRespRate = getMetric('apple_watch', 'respiratory_rate');
-  const whoopSkinTemp = getMetric('whoop', 'skin_temp_deviation');
-  const prevStrain = getMetric('whoop', 'daily_strain');
+  const recoveryScore = await getMetric('whoop', 'recovery_score');
+  const whoopHrv = await getMetric('whoop', 'hrv_rmssd');
+  const appleHrv = await getMetric('apple_watch', 'hrv_sdnn');
+  const whoopRhr = await getMetric('whoop', 'resting_hr');
+  const appleRhr = await getMetric('apple_watch', 'resting_hr');
+  const whoopSpo2 = await getMetric('whoop', 'spo2');
+  const whoopRespRate = await getMetric('whoop', 'respiratory_rate');
+  const appleRespRate = await getMetric('apple_watch', 'respiratory_rate');
+  const whoopSkinTemp = await getMetric('whoop', 'skin_temp_deviation');
+  const prevStrain = await getMetric('whoop', 'daily_strain');
 
-  const avgSpo2_7d = getAvg7d('whoop', 'spo2');
-  const avgHrv_7d = getAvg7d('whoop', 'hrv_rmssd');
-  const avgRhr_7d = getAvg7d('whoop', 'resting_hr');
-  const hrvBaseline = getBaseline(userId, 'hrv_sdnn', 90, day)?.value ?? null;
-  const rhrBaseline = getBaseline(userId, 'resting_hr', 30, day)?.value ?? null;
+  const avgSpo2_7d = await getAvg7d('whoop', 'spo2');
+  const avgHrv_7d = await getAvg7d('whoop', 'hrv_rmssd');
+  const avgRhr_7d = await getAvg7d('whoop', 'resting_hr');
+  const hrvBaseline = (await getBaseline(userId, 'hrv_sdnn', 90, day))?.value ?? null;
+  const rhrBaseline = (await getBaseline(userId, 'resting_hr', 30, day))?.value ?? null;
 
-  // Build sleep comparison
   const sleepComparison = {};
   if (appleSleep) {
     sleepComparison.apple_watch = {
@@ -248,18 +236,15 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     };
   }
 
-  // Build factors analysis
   const factors = [];
 
-  // SpO2
   if (whoopSpo2 != null) {
     const isLow = whoopSpo2 < 90;
-    const isBelowAvg = avgSpo2_7d != null && whoopSpo2 < avgSpo2_7d - 3;
     factors.push({
       metric: 'Blood Oxygen (SpO2)',
       apple_value: null,
       whoop_value: `${whoopSpo2.toFixed(1)}%`,
-      avg_7d: avgSpo2_7d ? `${avgSpo2_7d.toFixed(1)}%` : null,
+      avg_7d: avgSpo2_7d ? `${Number(avgSpo2_7d).toFixed(1)}%` : null,
       status: isLow ? 'low' : 'normal',
       impact: isLow ? 'high' : 'low',
       explanation: isLow
@@ -268,14 +253,13 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     });
   }
 
-  // HRV
   if (whoopHrv != null || appleHrv != null) {
     const hrvStatus = avgHrv_7d && whoopHrv ? (whoopHrv < avgHrv_7d * 0.85 ? 'below_avg' : whoopHrv > avgHrv_7d * 1.15 ? 'above_avg' : 'normal') : 'normal';
     factors.push({
       metric: 'Heart Rate Variability',
       apple_value: appleHrv ? `${appleHrv.toFixed(1)} ms (SDNN)` : null,
       whoop_value: whoopHrv ? `${whoopHrv.toFixed(1)} ms (RMSSD)` : null,
-      avg_7d: avgHrv_7d ? `${avgHrv_7d.toFixed(1)} ms` : null,
+      avg_7d: avgHrv_7d ? `${Number(avgHrv_7d).toFixed(1)} ms` : null,
       baseline_90d: hrvBaseline ? `${hrvBaseline.toFixed(1)} ms` : null,
       status: hrvStatus,
       impact: hrvStatus === 'below_avg' ? 'high' : 'medium',
@@ -283,14 +267,13 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     });
   }
 
-  // Resting HR
   if (whoopRhr != null || appleRhr != null) {
     const rhrDiff = (whoopRhr && appleRhr) ? Math.abs(whoopRhr - appleRhr) : 0;
     factors.push({
       metric: 'Resting Heart Rate',
       apple_value: appleRhr ? `${appleRhr} bpm` : null,
       whoop_value: whoopRhr ? `${whoopRhr} bpm` : null,
-      avg_7d: avgRhr_7d ? `${avgRhr_7d.toFixed(1)} bpm` : null,
+      avg_7d: avgRhr_7d ? `${Number(avgRhr_7d).toFixed(1)} bpm` : null,
       baseline_30d: rhrBaseline ? `${rhrBaseline.toFixed(1)} bpm` : null,
       status: 'normal',
       impact: 'medium',
@@ -300,7 +283,6 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     });
   }
 
-  // Respiratory Rate
   if (whoopRespRate != null || appleRespRate != null) {
     factors.push({
       metric: 'Respiratory Rate',
@@ -312,7 +294,6 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     });
   }
 
-  // Previous day strain
   if (prevStrain != null) {
     factors.push({
       metric: 'Previous Day Strain',
@@ -326,7 +307,6 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     });
   }
 
-  // Build score breakdown
   const scores = {
     whoop_recovery: recoveryScore != null ? {
       score: recoveryScore,
@@ -344,12 +324,12 @@ router.get('/score-explainer', requireAuth, (req, res) => {
     } : null
   };
 
-  // Build plain-English summary
   const summaryParts = [];
-  const activeRecovery = db.prepare(`
+  const { rows: activeRecoveryRows } = await db.query(`
     SELECT reason, start_date FROM recovery_periods
-    WHERE user_id = ? AND end_date IS NULL LIMIT 1
-  `).get(userId);
+    WHERE user_id = $1 AND end_date IS NULL LIMIT 1
+  `, [userId]);
+  const activeRecovery = activeRecoveryRows[0] || null;
 
   if (activeRecovery) {
     const dayNum = Math.floor((Date.now() - new Date(activeRecovery.start_date).getTime()) / 86400000) + 1;
@@ -393,7 +373,6 @@ router.get('/score-explainer', requireAuth, (req, res) => {
 
   const summary = summaryParts.join(' ');
 
-  // Build factor-level plain English
   const factorSummary = [];
   const highImpact = factors.filter(f => f.impact === 'high');
   const medImpact = factors.filter(f => f.impact === 'medium');
@@ -414,7 +393,7 @@ router.get('/score-explainer', requireAuth, (req, res) => {
   });
 });
 
-router.get('/trends', requireAuth, (req, res) => {
+router.get('/trends', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const range = String(req.query.range || '30').toLowerCase();
   const sources = sourceList(String(req.query.source || 'both'));
@@ -429,87 +408,121 @@ router.get('/trends', requireAuth, (req, res) => {
     fromDate = d.toISOString().slice(0, 10);
   }
 
-  const sourcePlaceholders = sources.map(() => '?').join(', ');
-  const baseParams = [userId, ...sources];
-  const dateClause = fromDate ? (toDate ? 'AND date(recorded_at) BETWEEN ? AND ?' : 'AND date(recorded_at) >= ?') : '';
-  const sleepDateClause = fromDate ? (toDate ? 'AND sleep_date BETWEEN ? AND ?' : 'AND sleep_date >= ?') : '';
-  const dateParams = fromDate ? (toDate ? [fromDate, toDate] : [fromDate]) : [];
+  let paramIdx = 1;
+  function nextParam() { return '$' + (paramIdx++); }
 
-  const hrv = db.prepare(`
-    SELECT date(recorded_at) AS date, source, metric_type, AVG(value) AS value
+  const userParam = nextParam();
+  const sourceParams = sources.map(() => nextParam());
+  const sourcePlaceholders = sourceParams.join(', ');
+  const baseValues = [userId, ...sources];
+
+  let dateClause = '';
+  let sleepDateClause = '';
+  const dateValues = [];
+  if (fromDate) {
+    if (toDate) {
+      const p1 = nextParam();
+      const p2 = nextParam();
+      dateClause = `AND DATE(recorded_at) BETWEEN ${p1} AND ${p2}`;
+      sleepDateClause = `AND sleep_date BETWEEN ${p1} AND ${p2}`;
+      dateValues.push(fromDate, toDate);
+    } else {
+      const p1 = nextParam();
+      dateClause = `AND DATE(recorded_at) >= ${p1}`;
+      sleepDateClause = `AND sleep_date >= ${p1}`;
+      dateValues.push(fromDate);
+    }
+  }
+
+  const allParams = [...baseValues, ...dateValues];
+
+  const hrv = (await db.query(`
+    SELECT DATE(recorded_at) AS date, source, metric_type, AVG(value) AS value
     FROM metric_records
-    WHERE user_id = ?
+    WHERE user_id = ${userParam}
       AND source IN (${sourcePlaceholders})
       AND metric_type IN ('hrv_sdnn', 'hrv_rmssd')
       ${dateClause}
-    GROUP BY date, source, metric_type
-    ORDER BY date ASC
-  `).all(...baseParams, ...dateParams);
+    GROUP BY DATE(recorded_at), source, metric_type
+    ORDER BY DATE(recorded_at) ASC
+  `, allParams)).rows;
 
-  const restingHr = db.prepare(`
-    SELECT date(recorded_at) AS date, source, AVG(value) AS value
+  const restingHr = (await db.query(`
+    SELECT DATE(recorded_at) AS date, source, AVG(value) AS value
     FROM metric_records
-    WHERE user_id = ?
+    WHERE user_id = ${userParam}
       AND source IN (${sourcePlaceholders})
       AND metric_type = 'resting_hr'
       ${dateClause}
-    GROUP BY date, source
-    ORDER BY date ASC
-  `).all(...baseParams, ...dateParams);
+    GROUP BY DATE(recorded_at), source
+    ORDER BY DATE(recorded_at) ASC
+  `, allParams)).rows;
 
-  const sleep = db.prepare(`
+  const sleep = (await db.query(`
     SELECT sleep_date AS date, source, total_duration_ms, sleep_need_ms
     FROM sleep_records
-    WHERE user_id = ?
+    WHERE user_id = ${userParam}
       AND source IN (${sourcePlaceholders})
       ${sleepDateClause}
     ORDER BY sleep_date ASC
-  `).all(...baseParams, ...dateParams);
+  `, allParams)).rows;
 
-  const sleepStages = db.prepare(`
+  const sleepStagesParams = [userId];
+  let sleepStagesDateClause = '';
+  if (fromDate) {
+    sleepStagesDateClause = 'AND sleep_date >= $2';
+    sleepStagesParams.push(fromDate);
+  }
+
+  const sleepStages = (await db.query(`
     SELECT sleep_date AS date, slow_wave_ms, rem_ms, light_ms, awake_ms
     FROM sleep_records
-    WHERE user_id = ?
-      AND source = 'whoop'
-      ${fromDate ? 'AND sleep_date >= ?' : ''}
+    WHERE user_id = $1 AND source = 'whoop'
+      ${sleepStagesDateClause}
     ORDER BY sleep_date ASC
-  `).all(userId, ...dateParams);
+  `, sleepStagesParams)).rows;
 
-  const whoopStrain = db.prepare(`
-    SELECT date(recorded_at) AS date, value AS whoop_strain
+  const strainParams = [userId];
+  let strainDateClause = '';
+  if (fromDate) {
+    strainDateClause = toDate ? 'AND DATE(recorded_at) BETWEEN $2 AND $3' : 'AND DATE(recorded_at) >= $2';
+    strainParams.push(fromDate);
+    if (toDate) strainParams.push(toDate);
+  }
+
+  const whoopStrain = (await db.query(`
+    SELECT DATE(recorded_at) AS date, value AS whoop_strain
     FROM metric_records
-    WHERE user_id = ?
-      AND metric_type = 'daily_strain'
-      ${dateClause}
+    WHERE user_id = $1 AND metric_type = 'daily_strain'
+      ${strainDateClause}
     ORDER BY date ASC
-  `).all(userId, ...dateParams);
+  `, strainParams)).rows;
 
-  const appleLoad = db.prepare(`
-    SELECT date(recorded_at) AS date, value AS apple_active_energy
+  const appleLoad = (await db.query(`
+    SELECT DATE(recorded_at) AS date, value AS apple_active_energy
     FROM metric_records
-    WHERE user_id = ?
-      AND metric_type = 'active_energy'
-      ${dateClause}
+    WHERE user_id = $1 AND metric_type = 'active_energy'
+      ${strainDateClause}
     ORDER BY date ASC
-  `).all(userId, ...dateParams);
+  `, strainParams)).rows;
 
-  const loadRows = db.prepare(`
-    SELECT date(recorded_at) AS date,
+  const loadRows = (await db.query(`
+    SELECT DATE(recorded_at) AS date,
       CASE
         WHEN metric_type = 'daily_strain' THEN value
         WHEN metric_type = 'active_energy' THEN value / 100.0
         ELSE 0
       END AS load
     FROM metric_records
-    WHERE user_id = ?
-      AND metric_type IN ('daily_strain', 'active_energy')
-      ${dateClause}
+    WHERE user_id = $1 AND metric_type IN ('daily_strain', 'active_energy')
+      ${strainDateClause}
     ORDER BY date ASC
-  `).all(userId, ...dateParams);
+  `, strainParams)).rows;
 
   const loadByDate = new Map();
   for (const row of loadRows) {
-    loadByDate.set(row.date, (loadByDate.get(row.date) || 0) + row.load);
+    const dateKey = row.date instanceof Date ? row.date.toISOString().slice(0, 10) : row.date;
+    loadByDate.set(dateKey, (loadByDate.get(dateKey) || 0) + Number(row.load));
   }
   const orderedDates = [...loadByDate.keys()].sort();
   const rolling7 = orderedDates.map((date, idx) => {
@@ -518,14 +531,20 @@ router.get('/trends', requireAuth, (req, res) => {
     return { date, value: avg };
   });
 
-  const baselineRows = db.prepare(`
+  const baselineParams = [userId];
+  let baselineDateClause = '';
+  if (fromDate) {
+    baselineDateClause = 'AND baseline_date >= $2';
+    baselineParams.push(fromDate);
+  }
+
+  const baselineRows = (await db.query(`
     SELECT baseline_date AS date, metric_type, window_days, value
     FROM derived_baselines
-    WHERE user_id = ?
-      AND source = 'apple_watch'
-      ${fromDate ? 'AND baseline_date >= ?' : ''}
+    WHERE user_id = $1 AND source = 'apple_watch'
+      ${baselineDateClause}
     ORDER BY baseline_date ASC
-  `).all(userId, ...dateParams);
+  `, baselineParams)).rows;
 
   return res.json({
     range,
@@ -544,46 +563,41 @@ router.get('/trends', requireAuth, (req, res) => {
   });
 });
 
-router.get('/device-comparison', requireAuth, (req, res) => {
+router.get('/device-comparison', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const metric = String(req.query.metric || 'sleep_duration');
   const from = String(req.query.from || dateString(-30));
   const to = String(req.query.to || dateString(0));
 
-  let appleRows = [];
-  let whoopRows = [];
+  let queryRows;
 
   if (metric === 'resting_hr') {
-    const query = db.prepare(`
-      SELECT date(recorded_at) AS date, source, AVG(value) AS value
+    queryRows = (await db.query(`
+      SELECT DATE(recorded_at) AS date, source, AVG(value) AS value
       FROM metric_records
-      WHERE user_id = ?
-        AND metric_type = 'resting_hr'
+      WHERE user_id = $1 AND metric_type = 'resting_hr'
         AND source IN ('apple_watch', 'whoop')
-        AND date(recorded_at) BETWEEN ? AND ?
-      GROUP BY date, source
-      ORDER BY date ASC
-    `).all(userId, from, to);
-
-    appleRows = query.filter((row) => row.source === 'apple_watch');
-    whoopRows = query.filter((row) => row.source === 'whoop');
+        AND DATE(recorded_at) BETWEEN $2 AND $3
+      GROUP BY DATE(recorded_at), source
+      ORDER BY DATE(recorded_at) ASC
+    `, [userId, from, to])).rows;
   } else {
-    const query = db.prepare(`
+    queryRows = (await db.query(`
       SELECT sleep_date AS date, source, AVG(total_duration_ms) AS value
       FROM sleep_records
-      WHERE user_id = ?
-        AND source IN ('apple_watch', 'whoop')
-        AND sleep_date BETWEEN ? AND ?
+      WHERE user_id = $1 AND source IN ('apple_watch', 'whoop')
+        AND sleep_date BETWEEN $2 AND $3
       GROUP BY sleep_date, source
       ORDER BY sleep_date ASC
-    `).all(userId, from, to);
-
-    appleRows = query.filter((row) => row.source === 'apple_watch');
-    whoopRows = query.filter((row) => row.source === 'whoop');
+    `, [userId, from, to])).rows;
   }
 
-  const appleMap = new Map(appleRows.map((r) => [r.date, r.value]));
-  const whoopMap = new Map(whoopRows.map((r) => [r.date, r.value]));
+  const fmtDate = (d) => d instanceof Date ? d.toISOString().slice(0, 10) : d;
+  const appleRows = queryRows.filter((row) => row.source === 'apple_watch');
+  const whoopRows = queryRows.filter((row) => row.source === 'whoop');
+
+  const appleMap = new Map(appleRows.map((r) => [fmtDate(r.date), Number(r.value)]));
+  const whoopMap = new Map(whoopRows.map((r) => [fmtDate(r.date), Number(r.value)]));
 
   const dates = [...new Set([...appleMap.keys(), ...whoopMap.keys()])].sort();
   const rows = dates.map((date) => {
@@ -603,7 +617,7 @@ router.get('/device-comparison', requireAuth, (req, res) => {
   return res.json({ metric, from, to, rows, average_delta: averageDelta });
 });
 
-router.get('/workouts', requireAuth, (req, res) => {
+router.get('/workouts', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const source = String(req.query.source || 'both');
   const from = String(req.query.from || dateString(-90));
@@ -611,53 +625,51 @@ router.get('/workouts', requireAuth, (req, res) => {
   const sport = String(req.query.sport || 'all');
 
   const sources = sourceList(source);
-  const sourcePlaceholders = sources.map(() => '?').join(', ');
+  let paramIdx = 1;
+  const userParam = '$' + (paramIdx++);
+  const sourceParamList = sources.map(() => '$' + (paramIdx++));
+  const sourcePlaceholders = sourceParamList.join(', ');
+  const fromParam = '$' + (paramIdx++);
+  const toParam = '$' + (paramIdx++);
   const params = [userId, ...sources, from, to];
 
   let sportClause = '';
   if (sport !== 'all') {
-    sportClause = 'AND sport_type = ?';
+    sportClause = 'AND sport_type = $' + (paramIdx++);
     params.push(sport);
   }
 
-  const workouts = db.prepare(`
-    SELECT
-      date(start_at) AS date,
-      source,
-      sport_type,
-      duration_ms,
-      avg_hr,
-      max_hr,
-      strain,
+  const workouts = (await db.query(`
+    SELECT DATE(start_at) AS date, source, sport_type, duration_ms,
+      avg_hr, max_hr, strain,
       COALESCE(energy_kcal, energy_kj * 0.239006) AS calories
     FROM workout_records
-    WHERE user_id = ?
+    WHERE user_id = ${userParam}
       AND source IN (${sourcePlaceholders})
-      AND date(start_at) BETWEEN ? AND ?
+      AND DATE(start_at) BETWEEN ${fromParam} AND ${toParam}
       ${sportClause}
     ORDER BY start_at DESC
-  `).all(...params);
+  `, params)).rows;
 
-  const loadRows = db.prepare(`
-    SELECT
-      date(start_at) AS date,
-      strftime('%Y-%W', start_at) AS week,
-      strftime('%Y-%m', start_at) AS month,
+  const loadRows = (await db.query(`
+    SELECT DATE(start_at) AS date,
+      TO_CHAR(start_at, 'IYYY-IW') AS week,
+      TO_CHAR(start_at, 'YYYY-MM') AS month,
       COALESCE(strain, COALESCE(energy_kcal, energy_kj * 0.239006), duration_ms / 60000.0) AS load
     FROM workout_records
-    WHERE user_id = ?
+    WHERE user_id = ${userParam}
       AND source IN (${sourcePlaceholders})
-      AND date(start_at) BETWEEN ? AND ?
+      AND DATE(start_at) BETWEEN ${fromParam} AND ${toParam}
       ${sportClause}
-  `).all(...params);
+  `, params)).rows;
 
   const weekly = {};
   const monthly = {};
   for (const row of loadRows) {
     const weekLabel = 'W' + row.week.slice(5);
-    weekly[weekLabel] = (weekly[weekLabel] || 0) + (row.load || 0);
+    weekly[weekLabel] = (weekly[weekLabel] || 0) + (Number(row.load) || 0);
     const monthLabel = row.month.slice(2);
-    monthly[monthLabel] = (monthly[monthLabel] || 0) + (row.load || 0);
+    monthly[monthLabel] = (monthly[monthLabel] || 0) + (Number(row.load) || 0);
   }
 
   return res.json({
@@ -667,16 +679,16 @@ router.get('/workouts', requireAuth, (req, res) => {
   });
 });
 
-router.get('/insights', requireAuth, (req, res) => {
+router.get('/insights', requireAuth, async (req, res) => {
   const userId = req.user.userId;
   const insights = [];
 
-  // Check recovery mode
-  const activeRecovery = db.prepare(`
+  const { rows: activeRecoveryRows } = await db.query(`
     SELECT reason, start_date FROM recovery_periods
-    WHERE user_id = ? AND end_date IS NULL
+    WHERE user_id = $1 AND end_date IS NULL
     ORDER BY start_date DESC LIMIT 1
-  `).get(userId);
+  `, [userId]);
+  const activeRecovery = activeRecoveryRows[0] || null;
 
   if (activeRecovery) {
     const dayNum = Math.floor((Date.now() - new Date(activeRecovery.start_date).getTime()) / 86400000) + 1;
@@ -688,30 +700,29 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // Determine overlap period
-  const whoopRange = db.prepare(`
-    SELECT MIN(date(recorded_at)) as start, MAX(date(recorded_at)) as end
-    FROM metric_records WHERE user_id = ? AND source = 'whoop'
-  `).get(userId);
+  const whoopRange = (await db.query(`
+    SELECT MIN(DATE(recorded_at)) as start, MAX(DATE(recorded_at)) as end
+    FROM metric_records WHERE user_id = $1 AND source = 'whoop'
+  `, [userId])).rows[0];
 
   if (!whoopRange || !whoopRange.start) {
     return res.json({ insights: [{ type: 'info', title: 'No WHOOP data', body: 'Upload WHOOP data to see cross-device insights.' }] });
   }
 
-  const overlapStart = whoopRange.start;
-  const overlapEnd = whoopRange.end;
+  const fmtDate = (d) => d instanceof Date ? d.toISOString().slice(0, 10) : d;
+  const overlapStart = fmtDate(whoopRange.start);
+  const overlapEnd = fmtDate(whoopRange.end);
 
-  // 1. Sleep duration comparison
-  const sleepComp = db.prepare(`
+  const sleepComp = (await db.query(`
     SELECT
-      ROUND(AVG(a.total_duration_ms / 3600000.0), 2) as apple_avg,
-      ROUND(AVG(w.total_duration_ms / 3600000.0), 2) as whoop_avg,
-      ROUND(AVG((a.total_duration_ms - w.total_duration_ms) / 3600000.0), 2) as avg_diff,
+      ROUND(AVG(a.total_duration_ms / 3600000.0)::numeric, 2) as apple_avg,
+      ROUND(AVG(w.total_duration_ms / 3600000.0)::numeric, 2) as whoop_avg,
+      ROUND(AVG((a.total_duration_ms - w.total_duration_ms) / 3600000.0)::numeric, 2) as avg_diff,
       COUNT(*) as days
     FROM sleep_records a
-    JOIN sleep_records w ON a.sleep_date = w.sleep_date AND w.source = 'whoop' AND w.user_id = ?
-    WHERE a.source = 'apple_watch' AND a.user_id = ?
-  `).get(userId, userId);
+    JOIN sleep_records w ON a.sleep_date = w.sleep_date AND w.source = 'whoop' AND w.user_id = $1
+    WHERE a.source = 'apple_watch' AND a.user_id = $2
+  `, [userId, userId])).rows[0];
 
   if (sleepComp && sleepComp.days > 0) {
     const direction = sleepComp.avg_diff > 0 ? 'longer' : 'shorter';
@@ -725,21 +736,20 @@ router.get('/insights', requireAuth, (req, res) => {
       detail: absDiff > 0.5
         ? 'This is a significant difference. Apple Watch may count light dozing as sleep, while WHOOP uses heart rate to detect true sleep onset.'
         : 'The two devices are closely aligned on sleep tracking.',
-      data: { apple_avg: sleepComp.apple_avg, whoop_avg: sleepComp.whoop_avg, diff_hours: sleepComp.avg_diff, days: sleepComp.days }
+      data: { apple_avg: Number(sleepComp.apple_avg), whoop_avg: Number(sleepComp.whoop_avg), diff_hours: Number(sleepComp.avg_diff), days: Number(sleepComp.days) }
     });
   }
 
-  // 2. Resting heart rate comparison
-  const rhrComp = db.prepare(`
+  const rhrComp = (await db.query(`
     SELECT
-      ROUND(AVG(a.val), 1) as apple_avg,
-      ROUND(AVG(w.val), 1) as whoop_avg,
-      ROUND(AVG(a.val - w.val), 1) as avg_diff,
+      ROUND(AVG(a.val)::numeric, 1) as apple_avg,
+      ROUND(AVG(w.val)::numeric, 1) as whoop_avg,
+      ROUND(AVG(a.val - w.val)::numeric, 1) as avg_diff,
       COUNT(*) as days
-    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='resting_hr' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
-    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='resting_hr' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    FROM (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$1 AND source='apple_watch' AND metric_type='resting_hr' AND DATE(recorded_at) BETWEEN $2 AND $3 GROUP BY DATE(recorded_at)) a
+    JOIN (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$4 AND source='whoop' AND metric_type='resting_hr' AND DATE(recorded_at) BETWEEN $5 AND $6 GROUP BY DATE(recorded_at)) w
     ON a.d = w.d
-  `).get(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+  `, [userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd])).rows[0];
 
   if (rhrComp && rhrComp.days > 0) {
     const direction = rhrComp.avg_diff > 0 ? 'higher' : 'lower';
@@ -749,20 +759,19 @@ router.get('/insights', requireAuth, (req, res) => {
       status: Math.abs(rhrComp.avg_diff) < 3 ? 'green' : Math.abs(rhrComp.avg_diff) < 5 ? 'yellow' : 'red',
       body: `Over ${rhrComp.days} days, Apple Watch averages ${rhrComp.apple_avg} bpm vs WHOOP's ${rhrComp.whoop_avg} bpm — Apple reads ${Math.abs(rhrComp.avg_diff)} bpm ${direction}.`,
       detail: 'WHOOP measures RHR during your deepest sleep phase (slow-wave sleep), while Apple Watch samples throughout the night. This can cause a consistent offset between the two.',
-      data: { apple_avg: rhrComp.apple_avg, whoop_avg: rhrComp.whoop_avg, diff_bpm: rhrComp.avg_diff, days: rhrComp.days }
+      data: { apple_avg: Number(rhrComp.apple_avg), whoop_avg: Number(rhrComp.whoop_avg), diff_bpm: Number(rhrComp.avg_diff), days: Number(rhrComp.days) }
     });
   }
 
-  // 3. HRV methodology difference
-  const hrvComp = db.prepare(`
+  const hrvComp = (await db.query(`
     SELECT
-      ROUND(AVG(a.val), 1) as apple_avg_sdnn,
-      ROUND(AVG(w.val), 1) as whoop_avg_rmssd,
+      ROUND(AVG(a.val)::numeric, 1) as apple_avg_sdnn,
+      ROUND(AVG(w.val)::numeric, 1) as whoop_avg_rmssd,
       COUNT(*) as days
-    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='hrv_sdnn' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
-    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='hrv_rmssd' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    FROM (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$1 AND source='apple_watch' AND metric_type='hrv_sdnn' AND DATE(recorded_at) BETWEEN $2 AND $3 GROUP BY DATE(recorded_at)) a
+    JOIN (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$4 AND source='whoop' AND metric_type='hrv_rmssd' AND DATE(recorded_at) BETWEEN $5 AND $6 GROUP BY DATE(recorded_at)) w
     ON a.d = w.d
-  `).get(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+  `, [userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd])).rows[0];
 
   if (hrvComp && hrvComp.days > 0) {
     insights.push({
@@ -771,27 +780,26 @@ router.get('/insights', requireAuth, (req, res) => {
       status: 'yellow',
       body: `Apple Watch HRV (SDNN) averages ${hrvComp.apple_avg_sdnn} ms while WHOOP HRV (RMSSD) averages ${hrvComp.whoop_avg_rmssd} ms over ${hrvComp.days} overlapping days.`,
       detail: 'These are fundamentally different calculations. SDNN measures overall variability across all heartbeat intervals, while RMSSD measures beat-to-beat changes — more sensitive to parasympathetic (recovery) activity. Comparing their trends is meaningful, but the absolute numbers will always differ.',
-      data: { apple_sdnn: hrvComp.apple_avg_sdnn, whoop_rmssd: hrvComp.whoop_avg_rmssd, days: hrvComp.days }
+      data: { apple_sdnn: Number(hrvComp.apple_avg_sdnn), whoop_rmssd: Number(hrvComp.whoop_avg_rmssd), days: Number(hrvComp.days) }
     });
   }
 
-  // 4. HRV trend correlation
-  const hrvTrend = db.prepare(`
+  const hrvTrend = (await db.query(`
     SELECT a.d, a.val as apple_val, w.val as whoop_val
-    FROM (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='apple_watch' AND metric_type='hrv_sdnn' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) a
-    JOIN (SELECT date(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=? AND source='whoop' AND metric_type='hrv_rmssd' AND date(recorded_at) BETWEEN ? AND ? GROUP BY d) w
+    FROM (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$1 AND source='apple_watch' AND metric_type='hrv_sdnn' AND DATE(recorded_at) BETWEEN $2 AND $3 GROUP BY DATE(recorded_at)) a
+    JOIN (SELECT DATE(recorded_at) as d, AVG(value) as val FROM metric_records WHERE user_id=$4 AND source='whoop' AND metric_type='hrv_rmssd' AND DATE(recorded_at) BETWEEN $5 AND $6 GROUP BY DATE(recorded_at)) w
     ON a.d = w.d
     ORDER BY a.d
-  `).all(userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd);
+  `, [userId, overlapStart, overlapEnd, userId, overlapStart, overlapEnd])).rows;
 
   if (hrvTrend.length >= 7) {
     const n = hrvTrend.length;
-    const xMean = hrvTrend.reduce((s, r) => s + r.apple_val, 0) / n;
-    const yMean = hrvTrend.reduce((s, r) => s + r.whoop_val, 0) / n;
+    const xMean = hrvTrend.reduce((s, r) => s + Number(r.apple_val), 0) / n;
+    const yMean = hrvTrend.reduce((s, r) => s + Number(r.whoop_val), 0) / n;
     let num = 0, denX = 0, denY = 0;
     for (const r of hrvTrend) {
-      const dx = r.apple_val - xMean;
-      const dy = r.whoop_val - yMean;
+      const dx = Number(r.apple_val) - xMean;
+      const dy = Number(r.whoop_val) - yMean;
       num += dx * dy;
       denX += dx * dx;
       denY += dy * dy;
@@ -814,18 +822,17 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // 5. Recovery vs next-day strain pattern
-  const recoveryStrain = db.prepare(`
+  const recoveryStrain = (await db.query(`
     SELECT
       CASE WHEN m.value < 33 THEN 'red' WHEN m.value <= 66 THEN 'yellow' ELSE 'green' END as zone,
-      ROUND(AVG(ns.value), 1) as avg_next_strain,
+      ROUND(AVG(ns.value)::numeric, 1) as avg_next_strain,
       COUNT(*) as days
     FROM metric_records m
-    JOIN metric_records ns ON ns.user_id = ? AND ns.source = 'whoop' AND ns.metric_type = 'daily_strain'
-      AND date(ns.recorded_at) = date(m.recorded_at, '+1 day')
-    WHERE m.user_id = ? AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
+    JOIN metric_records ns ON ns.user_id = $1 AND ns.source = 'whoop' AND ns.metric_type = 'daily_strain'
+      AND DATE(ns.recorded_at) = DATE(m.recorded_at) + 1
+    WHERE m.user_id = $2 AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
     GROUP BY zone
-  `).all(userId, userId);
+  `, [userId, userId])).rows;
 
   if (recoveryStrain.length > 0) {
     const zoneMap = {};
@@ -838,21 +845,20 @@ router.get('/insights', requireAuth, (req, res) => {
     insights.push({
       type: 'pattern',
       title: 'Recovery Zone → Next Day Activity',
-      status: zoneMap.red && zoneMap.green && zoneMap.red.avg_next_strain > zoneMap.green.avg_next_strain ? 'red' : 'green',
+      status: zoneMap.red && zoneMap.green && Number(zoneMap.red.avg_next_strain) > Number(zoneMap.green.avg_next_strain) ? 'red' : 'green',
       body: parts.join('. ') + '.',
       detail: 'This shows whether you tend to train harder on high-recovery days. Ideally, green days should correlate with higher strain and red days with rest.',
       data: recoveryStrain
     });
   }
 
-  // 6. Sleep consistency
-  const sleepTimes = db.prepare(`
+  const sleepTimes = (await db.query(`
     SELECT sleep_date, start_at,
-      CAST(strftime('%H', start_at) AS INTEGER) * 60 + CAST(strftime('%M', start_at) AS INTEGER) as onset_minutes
+      EXTRACT(HOUR FROM start_at)::integer * 60 + EXTRACT(MINUTE FROM start_at)::integer as onset_minutes
     FROM sleep_records
-    WHERE user_id = ? AND source = 'whoop' AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
+    WHERE user_id = $1 AND source = 'whoop' AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
     ORDER BY sleep_date DESC LIMIT 30
-  `).all(userId);
+  `, [userId])).rows;
 
   if (sleepTimes.length >= 7) {
     const minutes = sleepTimes.map(s => s.onset_minutes > 720 ? s.onset_minutes - 1440 : s.onset_minutes);
@@ -874,49 +880,47 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // 7. Best and worst recovery days
-  const bestWorst = db.prepare(`
-    SELECT date(recorded_at) as d, value as recovery,
-      (SELECT total_duration_ms / 3600000.0 FROM sleep_records WHERE user_id = ? AND source = 'whoop' AND sleep_date = date(m.recorded_at) LIMIT 1) as sleep_hours,
-      (SELECT value FROM metric_records WHERE user_id = ? AND source = 'whoop' AND metric_type = 'daily_strain' AND date(recorded_at) = date(m.recorded_at, '-1 day') LIMIT 1) as prev_strain
+  const bestWorst = (await db.query(`
+    SELECT DATE(recorded_at) as d, value as recovery,
+      (SELECT total_duration_ms / 3600000.0 FROM sleep_records WHERE user_id = $1 AND source = 'whoop' AND sleep_date = DATE(m.recorded_at) LIMIT 1) as sleep_hours,
+      (SELECT value FROM metric_records WHERE user_id = $2 AND source = 'whoop' AND metric_type = 'daily_strain' AND DATE(recorded_at) = DATE(m.recorded_at) - 1 LIMIT 1) as prev_strain
     FROM metric_records m
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score'
+    WHERE user_id = $3 AND source = 'whoop' AND metric_type = 'recovery_score'
     ORDER BY value DESC
-  `).all(userId, userId, userId);
+  `, [userId, userId, userId])).rows;
 
   if (bestWorst.length >= 5) {
     const top3 = bestWorst.slice(0, 3);
     const bottom3 = bestWorst.slice(-3).reverse();
 
-    const topAvgSleep = top3.filter(r => r.sleep_hours).reduce((s, r) => s + r.sleep_hours, 0) / Math.max(top3.filter(r => r.sleep_hours).length, 1);
-    const bottomAvgSleep = bottom3.filter(r => r.sleep_hours).reduce((s, r) => s + r.sleep_hours, 0) / Math.max(bottom3.filter(r => r.sleep_hours).length, 1);
+    const topAvgSleep = top3.filter(r => r.sleep_hours).reduce((s, r) => s + Number(r.sleep_hours), 0) / Math.max(top3.filter(r => r.sleep_hours).length, 1);
+    const bottomAvgSleep = bottom3.filter(r => r.sleep_hours).reduce((s, r) => s + Number(r.sleep_hours), 0) / Math.max(bottom3.filter(r => r.sleep_hours).length, 1);
 
     insights.push({
       type: 'pattern',
       title: 'What Drives Your Best vs Worst Recovery?',
       status: 'green',
-      body: `Best 3 days (avg ${Math.round(top3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${topAvgSleep.toFixed(1)}h sleep. Worst 3 days (avg ${Math.round(bottom3.reduce((s, r) => s + r.recovery, 0) / 3)}% recovery): avg ${bottomAvgSleep.toFixed(1)}h sleep.`,
+      body: `Best 3 days (avg ${Math.round(top3.reduce((s, r) => s + Number(r.recovery), 0) / 3)}% recovery): avg ${topAvgSleep.toFixed(1)}h sleep. Worst 3 days (avg ${Math.round(bottom3.reduce((s, r) => s + Number(r.recovery), 0) / 3)}% recovery): avg ${bottomAvgSleep.toFixed(1)}h sleep.`,
       detail: 'Sleep duration is the strongest predictor of recovery. Other factors include previous-day strain, alcohol, and sleep consistency.',
       data: { best: top3, worst: bottom3 }
     });
   }
 
-  // 8. Workout Impact on Recovery
-  const workoutImpact = db.prepare(`
+  const workoutImpact = (await db.query(`
     SELECT
       CASE WHEN strain < 8 THEN 'low' WHEN strain <= 14 THEN 'moderate' ELSE 'high' END as intensity,
-      ROUND(AVG(next_recovery), 1) as avg_next_recovery,
+      ROUND(AVG(next_recovery)::numeric, 1) as avg_next_recovery,
       COUNT(*) as workouts
     FROM (
       SELECT w.strain,
-        (SELECT value FROM metric_records WHERE user_id = ? AND source = 'whoop' AND metric_type = 'recovery_score'
-         AND date(recorded_at) = date(w.start_at, '+1 day') LIMIT 1) as next_recovery
+        (SELECT value FROM metric_records WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'recovery_score'
+         AND DATE(recorded_at) = DATE(w.start_at) + 1 LIMIT 1) as next_recovery
       FROM workout_records w
-      WHERE w.user_id = ? AND w.source = 'whoop' AND w.strain IS NOT NULL
-    )
+      WHERE w.user_id = $2 AND w.source = 'whoop' AND w.strain IS NOT NULL
+    ) sub
     WHERE next_recovery IS NOT NULL
     GROUP BY intensity
-  `).all(userId, userId);
+  `, [userId, userId])).rows;
 
   if (workoutImpact.length > 0) {
     const parts = workoutImpact.map(w => `${w.intensity} strain (${w.workouts}x): ${w.avg_next_recovery}% next-day recovery`);
@@ -929,18 +933,17 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // 9. Sleep Quality vs Quantity
-  const sleepQuality = db.prepare(`
+  const sleepQuality = (await db.query(`
     SELECT
-      ROUND(AVG(total_duration_ms / 3600000.0), 1) as avg_total_hours,
-      ROUND(AVG(CASE WHEN slow_wave_ms IS NOT NULL THEN slow_wave_ms * 100.0 / total_duration_ms END), 1) as avg_deep_pct,
-      ROUND(AVG(CASE WHEN rem_ms IS NOT NULL THEN rem_ms * 100.0 / total_duration_ms END), 1) as avg_rem_pct,
-      ROUND(AVG(CASE WHEN light_ms IS NOT NULL THEN light_ms * 100.0 / total_duration_ms END), 1) as avg_light_pct,
+      ROUND(AVG(total_duration_ms / 3600000.0)::numeric, 1) as avg_total_hours,
+      ROUND(AVG(CASE WHEN slow_wave_ms IS NOT NULL THEN slow_wave_ms * 100.0 / total_duration_ms END)::numeric, 1) as avg_deep_pct,
+      ROUND(AVG(CASE WHEN rem_ms IS NOT NULL THEN rem_ms * 100.0 / total_duration_ms END)::numeric, 1) as avg_rem_pct,
+      ROUND(AVG(CASE WHEN light_ms IS NOT NULL THEN light_ms * 100.0 / total_duration_ms END)::numeric, 1) as avg_light_pct,
       COUNT(*) as nights
     FROM sleep_records
-    WHERE user_id = ? AND source = 'whoop'
+    WHERE user_id = $1 AND source = 'whoop'
       AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
-  `).get(userId);
+  `, [userId])).rows[0];
 
   if (sleepQuality && sleepQuality.nights >= 7) {
     const deepStatus = sleepQuality.avg_deep_pct < 15 ? 'below the recommended 15-20%' : 'within the healthy 15-20% range';
@@ -954,24 +957,23 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // 10. Weekend vs Weekday patterns
-  const weekdayPattern = db.prepare(`
+  const weekdayPattern = (await db.query(`
     SELECT
-      CASE WHEN CAST(strftime('%w', sleep_date) AS INTEGER) IN (0, 6) THEN 'weekend' ELSE 'weekday' END as day_type,
-      ROUND(AVG(total_duration_ms / 3600000.0), 2) as avg_hours,
+      CASE WHEN EXTRACT(DOW FROM sleep_date)::integer IN (0, 6) THEN 'weekend' ELSE 'weekday' END as day_type,
+      ROUND(AVG(total_duration_ms / 3600000.0)::numeric, 2) as avg_hours,
       COUNT(*) as nights
     FROM sleep_records
-    WHERE user_id = ? AND source = 'whoop'
+    WHERE user_id = $1 AND source = 'whoop'
       AND (metadata_json IS NULL OR metadata_json NOT LIKE '%"nap":true%')
     GROUP BY day_type
-  `).all(userId);
+  `, [userId])).rows;
 
   if (weekdayPattern.length === 2) {
     const weekday = weekdayPattern.find(r => r.day_type === 'weekday');
     const weekend = weekdayPattern.find(r => r.day_type === 'weekend');
     if (weekday && weekend) {
-      const diff = Math.abs(weekend.avg_hours - weekday.avg_hours);
-      const direction = weekend.avg_hours > weekday.avg_hours ? 'more' : 'less';
+      const diff = Math.abs(Number(weekend.avg_hours) - Number(weekday.avg_hours));
+      const direction = Number(weekend.avg_hours) > Number(weekday.avg_hours) ? 'more' : 'less';
       insights.push({
         type: 'pattern',
         title: 'Weekend vs Weekday Sleep',
@@ -982,8 +984,7 @@ router.get('/insights', requireAuth, (req, res) => {
     }
   }
 
-  // 11. Optimal Sleep Window
-  const sleepRecoveryCorr = db.prepare(`
+  const sleepRecoveryCorr = (await db.query(`
     SELECT
       CASE
         WHEN s.total_duration_ms / 3600000.0 < 6.5 THEN 'under6.5h'
@@ -992,17 +993,17 @@ router.get('/insights', requireAuth, (req, res) => {
         WHEN s.total_duration_ms / 3600000.0 < 9.5 THEN '8.5-9.5h'
         ELSE 'over9.5h'
       END as bucket,
-      ROUND(AVG(m.value), 1) as avg_recovery,
+      ROUND(AVG(m.value)::numeric, 1) as avg_recovery,
       COUNT(*) as nights
     FROM sleep_records s
-    JOIN metric_records m ON m.user_id = ? AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
-      AND date(m.recorded_at) = s.sleep_date
-    WHERE s.user_id = ? AND s.source = 'whoop'
+    JOIN metric_records m ON m.user_id = $1 AND m.source = 'whoop' AND m.metric_type = 'recovery_score'
+      AND DATE(m.recorded_at) = s.sleep_date
+    WHERE s.user_id = $2 AND s.source = 'whoop'
       AND (s.metadata_json IS NULL OR s.metadata_json NOT LIKE '%"nap":true%')
     GROUP BY bucket
-    HAVING nights >= 3
+    HAVING COUNT(*) >= 3
     ORDER BY avg_recovery DESC
-  `).all(userId, userId);
+  `, [userId, userId])).rows;
 
   if (sleepRecoveryCorr.length >= 2) {
     const best = sleepRecoveryCorr[0];
@@ -1016,21 +1017,19 @@ router.get('/insights', requireAuth, (req, res) => {
     });
   }
 
-  // 12. SpO2 / Medication Impact
-  const spo2Trend = db.prepare(`
-    SELECT date(recorded_at) as d, value
+  const spo2Trend = (await db.query(`
+    SELECT DATE(recorded_at) as d, value
     FROM metric_records
-    WHERE user_id = ? AND source = 'whoop' AND metric_type = 'spo2'
-    ORDER BY recorded_at DESC
-    LIMIT 14
-  `).all(userId);
+    WHERE user_id = $1 AND source = 'whoop' AND metric_type = 'spo2'
+    ORDER BY recorded_at DESC LIMIT 14
+  `, [userId])).rows;
 
   if (spo2Trend.length >= 5) {
     const recent7 = spo2Trend.slice(0, 7);
     const prior7 = spo2Trend.slice(7);
-    const recentAvg = recent7.reduce((s, r) => s + r.value, 0) / recent7.length;
-    const priorAvg = prior7.length > 0 ? prior7.reduce((s, r) => s + r.value, 0) / prior7.length : null;
-    const lowDays = recent7.filter(r => r.value < 90).length;
+    const recentAvg = recent7.reduce((s, r) => s + Number(r.value), 0) / recent7.length;
+    const priorAvg = prior7.length > 0 ? prior7.reduce((s, r) => s + Number(r.value), 0) / prior7.length : null;
+    const lowDays = recent7.filter(r => Number(r.value) < 90).length;
 
     if (lowDays > 0) {
       insights.push({
