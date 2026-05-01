@@ -316,3 +316,138 @@ Added four indexes optimized for the actual query patterns in dashboard routes:
 - ingestWorkoutBatch now tracks which dates were affected and recomputes only those periods
 
 **Why:** Dashboard performance directly impacts user experience. Indexes eliminate O(n) scans. Aggregates eliminate redundant computation. Gap indicators fix a longstanding UI issue where missing days were silently interpolated, confusing users.
+
+---
+
+## 2026-05-01: Privacy Policy & Terms of Service Pages
+
+**Date:** 2026-05-01  
+**By:** Book (Technical Writer)
+
+**What:** Created standalone privacy policy and terms of service pages for WHOOP OAuth registration.
+
+**Files Created:**
+- `frontend/public/privacy.html` — Full privacy policy
+- `frontend/public/terms.html` — Terms of service
+
+**Key Decisions:**
+
+### Standalone HTML, Not React Routes
+These are plain HTML files in Vite's `public/` directory, not React components. This ensures they load even if the SPA hasn't bootstrapped — important for OAuth registration where WHOOP reviewers need to access the URL directly.
+
+### Self-Hosted Framing
+The privacy policy is honest about what HealthStitch is: a personal, self-hosted tool. It emphasizes that data stays on the user's own hardware, there's no cloud, no third-party sharing, no analytics. This is accurate and differentiates it from typical SaaS privacy policies.
+
+### Contact Email
+Used `shari@healthstitch.dev` as the contact address.
+
+**Why:** WHOOP's developer app OAuth registration requires a privacy policy URL and may require terms of service. These pages satisfy that requirement while being truthful about the project's nature.
+
+**Production URLs** (with Vite config `base: '/healthstitch/'`):
+- `https://yourdomain.com/healthstitch/privacy.html`
+- `https://yourdomain.com/healthstitch/terms.html`
+
+---
+
+## 2026-04-30T19:15:00Z: User Directive — PostgreSQL Migration
+
+**By:** Shari Paltrowitz (via Copilot)
+
+**What:** Set up a data pipeline to send health data to a PostgreSQL server running on her Mac Mini. This replaces SQLite as the production database for multi-device access.
+
+**Why:** User request — enables iOS app, web dashboard, and WHOOP scheduler to all connect to a central database instead of a local SQLite file.
+
+**Scoping:** See wash-postgres-testflight-scoping decision for detailed approach (Option D: thin async wrapper, ~2 days effort).
+
+---
+
+## 2026-04-30T19:15:00Z: User Directive — TestFlight Distribution
+
+**By:** Shari Paltrowitz (via Copilot)
+
+**What:** Use TestFlight for iOS app distribution. Apple Developer account is available (purchased by husband).
+
+**Why:** Enables one-tap install for beta testers with real-time HealthKit background sync.
+
+**Scoping:** See wash-postgres-testflight-scoping decision for TestFlight codebase prep details (Configuration.swift, ATS exception, version bumping script).
+
+---
+
+## 2026-04-30: Scoping — PostgreSQL Migration + TestFlight Configuration
+
+**Date:** 2026-04-30  
+**By:** Wash (Backend Developer)
+
+**What:** Comprehensive scoping document for two user directives: PostgreSQL migration and TestFlight distribution.
+
+### PostgreSQL Migration (Approach: Option D)
+
+**Current State:**
+- Backend uses better-sqlite3 (sync API)
+- 6 migration SQL files, ~45 prepared statements across routes/services
+- 3 services use db.transaction()
+
+**Recommended Approach:** Thin async wrapper (Option D)
+- Install `pg` package
+- Rewrite `db/client.js` to export pool + helpers
+- Port all 6 `.sql` migrations to PostgreSQL syntax
+- Convert routes/services to async
+- Update `config.js` to read `DATABASE_URL` env var
+
+**Syntax Changes Cheat Sheet:**
+- `?` → `$1, $2, $3...`
+- `INSERT OR IGNORE` → `INSERT ... ON CONFLICT DO NOTHING`
+- `datetime('now')` → `NOW()`
+- `date(col, '-N days')` → `col::date - INTERVAL 'N days'`
+- Remove PRAGMAs
+- Expression indexes: `CREATE INDEX idx ON tbl ((col::date))`
+
+**Files to Modify:**
+- `db/client.js` — full rewrite (Pool export)
+- `db/migrate.js` — async pool
+- All 6 `.sql` migrations — syntax adjustments
+- `routes/authRoutes.js`, `routes/appleRoutes.js`, `routes/dashboardRoutes.js` — async
+- `services/ingestService.js`, `services/whoopService.js`, `services/whoop-scheduler.js`, `services/aggregateService.js`, `services/baselineService.js` — async
+
+**Effort:** ~2 days  
+**Data Migration:** pgloader or custom script (~2 hours)  
+**Postgres Network Config:** pg_hba.conf + firewall (~30 min)
+
+**iOS Companion Impact:** None — communicates via HTTP only.
+
+**Network Configuration (Mac Mini):**
+1. `listen_addresses = '*'` in postgresql.conf
+2. Add pg_hba.conf rule for LAN subnet
+3. macOS firewall: allow port 5432 inbound
+4. Backend .env: `DATABASE_URL=postgresql://healthstitch:password@localhost:5432/healthstitch`
+
+### TestFlight Configuration
+
+**Current iOS State:**
+- Single-target SwiftUI app at `ios-companion/HealthSyncCompanion/`
+- Info.plist declares HealthKit, Background Fetch, Background Processing
+- No `.xcodeproj` in repo
+
+**Manual Steps (Shari does in Xcode/App Store Connect):**
+1. Create app record in App Store Connect
+2. Set Bundle ID in Xcode (e.g., `com.healthstitch.companion`)
+3. Enable automatic signing
+4. Archive and upload to App Store Connect
+5. Add internal testers in TestFlight
+
+**Codebase Prep (Engineering):**
+- `ios-companion/HealthSyncCompanion/Configuration.swift` — build-time URL defaults (DEBUG: localhost, RELEASE: Mac Mini LAN IP)
+- `ios-companion/HealthSyncCompanion/ContentView.swift` — use AppConfig.defaultBackendURL
+- `ios-companion/HealthSyncCompanion/Info.plist` — add NSAllowsLocalNetworking ATS exception
+- `scripts/bump-ios-version.sh` — increment CFBundleVersion before each upload
+
+**Network Requirement:**
+TestFlight on physical iPhone cannot reach localhost. Recommendation: **Mac Mini static LAN IP** (simple, free, fast). Assign static IP via router DHCP reservation. If Shari needs access outside home, add Tailscale later.
+
+**Effort:** ~2 hours codebase prep + 1 hour manual steps
+
+**Recommended Execution Order:**
+1. PostgreSQL migration (unblocks multi-device)
+2. TestFlight codebase prep (can be parallel)
+3. Shari does manual TestFlight steps
+4. Verify iOS app connects to backend over LAN
