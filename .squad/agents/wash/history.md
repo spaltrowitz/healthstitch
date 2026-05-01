@@ -84,3 +84,19 @@
 ### 2026-04-30 — Apple Watch Phase 2 & Performance Optimizations Spawned
 
 📌 **Team update (2026-04-30T12:10:00Z):** Apple Watch Phase 2 spawned with Wash, Kaylee, River. Phase 2 adds background observers, anchored queries, Keychain JWT, BGAppRefreshTask, sync-status endpoint. Kaylee building SyncStatus UI component with 60s auto-refresh and green/amber/red freshness indicators. River adding expression indexes on date columns and pre-computed training_load_aggregates for O(1) workouts queries. — Scribe
+
+### 2025-07-15 — PostgreSQL + TestFlight Scoping
+
+**Scope:** Analyzed full backend DB layer for Postgres migration + iOS TestFlight readiness.
+
+**Key findings:**
+- 45 prepared statements across 9 files, all synchronous (better-sqlite3)
+- 3 transaction sites (ingestService, baselineService, aggregateService)
+- Main SQLite-isms: `datetime('now')` (8×), `INSERT OR IGNORE` (3×), `date()` expressions (~20×), PRAGMAs (2×)
+- `ON CONFLICT` upserts (5×) are PG-compatible as-is
+- iOS app is HTTP-only — no DB awareness, just needs correct backend URL
+- No .xcodeproj committed to repo — Xcode project settings are local only
+- Recommended: Option D (thin pg.Pool wrapper) — 2 day estimate
+- TestFlight critical path: ATS exception for LAN HTTP + build-time URL config
+
+**Output:** `.squad/decisions/inbox/wash-postgres-testflight-scoping.md`
