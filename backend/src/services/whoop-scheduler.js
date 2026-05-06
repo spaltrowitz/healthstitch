@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const db = require('../db/client');
 const { syncWhoopData } = require('./whoopService');
 const { computeBaselines } = require('./baselineService');
+const { computeRecoveryScore } = require('./recoveryService');
 
 function computeBackoff(failures) {
   const minutes = Math.min(Math.pow(2, failures - 1), 30);
@@ -71,6 +72,25 @@ async function runSyncCycle() {
 }
 
 let task = null;
+let scoresTask = null;
+
+async function runScoresCycle() {
+  const { rows: users } = await db.query('SELECT id FROM users');
+  const today = new Date().toISOString().slice(0, 10);
+
+  console.log(`[scores] Computing daily scores for ${users.length} user(s)`);
+
+  for (const user of users) {
+    try {
+      await computeRecoveryScore(user.id, today);
+      console.log(`[scores] user=${user.id} scores computed for ${today}`);
+    } catch (err) {
+      console.error(`[scores] user=${user.id} error: ${err.message}`);
+    }
+  }
+
+  console.log(`[scores] Cycle complete`);
+}
 
 function startScheduler() {
   if (task) return;
@@ -79,13 +99,25 @@ function startScheduler() {
       console.error(`[whoop-sync] Unexpected cycle error: ${err.message}`);
     });
   });
+
+  scoresTask = cron.schedule('0 6 * * *', () => {
+    runScoresCycle().catch((err) => {
+      console.error(`[scores] Unexpected cycle error: ${err.message}`);
+    });
+  });
+
   console.log('[whoop-sync] Scheduler started (every 30 minutes)');
+  console.log('[scores] Daily score computation scheduled (6:00 AM)');
 }
 
 function stopScheduler() {
   if (task) {
     task.stop();
     task = null;
+  }
+  if (scoresTask) {
+    scoresTask.stop();
+    scoresTask = null;
   }
 }
 

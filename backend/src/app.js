@@ -6,6 +6,7 @@ const appleRoutes = require('./routes/appleRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const recoveryRoutes = require('./routes/recoveryRoutes');
+const scoresRoutes = require('./routes/scoresRoutes');
 
 const app = express();
 app.use(cors());
@@ -22,5 +23,6 @@ app.use('/api/apple', appleRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/recovery', recoveryRoutes);
+app.use('/api/scores', scoresRoutes);
 
 module.exports = app;
