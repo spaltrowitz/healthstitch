@@ -19,7 +19,7 @@
 | River | Data Engineer | `.squad/agents/river/charter.md` | ✅ Active |
 | Book | Technical Writer | `.squad/agents/book/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
-| Ralph | Work Monitor | — | 🔄 Monitor |
+| Ralph | Work Monitor | — | ⏸️ Removed |
 
 ## Coding Agent
 

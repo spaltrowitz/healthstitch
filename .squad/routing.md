@@ -45,6 +45,27 @@ When triaging, Mal should ask:
 4. **Is it security-sensitive?** Auth, encryption, access control → always 🔴
 5. **Is it medium complexity with specs?** Feature with clear requirements, refactoring with tests → likely 🟡
 
+## Multi-Domain Routing
+
+| Signal | Action |
+|--------|--------|
+| "Team, ..." or broad feature request | Fan-out: Mal + relevant domain agents in parallel |
+| New feature implementation | Mal (arch) + Kaylee/Wash (impl) + Zoe (tests) |
+| UI/UX feature | Book (copy) + Kaylee (impl) |
+| Data/analytics question | River (methodology) + Wash (implementation) |
+| Health domain question | River (domain) + relevant tech agent |
+
+## Review Gates
+
+| Change Type | Required Reviewer |
+|-------------|-------------------|
+| Architecture decisions | Mal must approve before implementation |
+| API contracts | Mal must approve before frontend integration |
+| New components/pages | Zoe must review for test coverage |
+| Database migrations | Mal + Wash must both approve |
+| Health metric calculations | River must validate methodology |
+| Security-related changes | Mal reviews with security focus |
+
 ## Rules
 
 1. **Eager by default** — spawn all agents who could usefully start work, including anticipatory downstream work.
@@ -55,3 +76,12 @@ When triaging, Mal should ask:
 6. **Anticipate downstream work.** If a feature is being built, spawn the tester to write test cases from requirements simultaneously.
 7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Mal handles all `squad` (base label) triage.
 8. **@copilot routing** — when evaluating issues, check @copilot's capability profile in `team.md`. Route 🟢 good-fit tasks to `squad:copilot`. Flag 🟡 needs-review tasks for PR review. Keep 🔴 not-suitable tasks with squad members.
+
+## Optional Agents
+
+| Agent | Role | When to Route |
+|-------|------|---------------|
+| River | Domain Expert (Data Engineer) | Data modeling, baselines, statistical methodology, health metric validation |
+| Book | Technical Writer | UI copy, labels, headings, metric explanations, user-facing text |
+
+> Domain Expert and Technical Writer are optional roles. If unavailable, route to Mal for triage.

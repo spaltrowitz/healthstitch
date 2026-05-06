@@ -76,3 +76,19 @@
 ### 2026-04-30 — Apple Watch Phase 2 & Performance Optimizations Spawned
 
 📌 **Team update (2026-04-30T12:10:00Z):** Apple Watch Phase 2 spawned with Wash, Kaylee, River. Phase 2 adds background observers, anchored queries, Keychain JWT, BGAppRefreshTask, sync-status endpoint. Kaylee building SyncStatus UI component with 60s auto-refresh and green/amber/red freshness indicators. River adding expression indexes on date columns and pre-computed training_load_aggregates for O(1) workouts queries. — Scribe
+
+## Cross-Project Domain Expert Knowledge (injected 2026-05-02)
+
+### From EatDiscounted (Redfoot)
+- **Platform accuracy audit methodology:** Reviewed CSE reliability, sitemap availability, matching quality, and data corrections per source. Applied `site:` operator to CSE queries to prevent false positives. HealthStitch should audit each device API (WHOOP, Apple Watch) for data accuracy and completeness gaps.
+- **Word-boundary matching (`\b`)** prevents partial string matches. Apply to metric name matching and device source filtering.
+- **Dead code identification:** Defined-but-never-called functions waste build overhead. Audit HealthStitch backend for orphaned service functions.
+- **API landscape classification:** (1) immediately actionable, (2) needs partnership, (3) requires special handling. Apply when evaluating new wearable integrations (Garmin, Oura, Fitbit).
+- **Sitemap/directory-based approach most reliable** for data that platforms make publicly available. For HealthStitch, official API documentation and SDK changelogs are the equivalent reliable source.
+
+### From Scrunch (Marty)
+- **Influencer/trend analysis as product signal:** #HairTok trends revealed underserved niches (scalp care, bond repair). HealthStitch equivalent: monitor health/fitness influencer trends for feature demand signals (sleep optimization, recovery metrics, stress tracking).
+- **Category expansion from trend signals:** Identified new categories from community demand, framed for underserved audience. HealthStitch could add metric categories based on user demand (e.g., stress metrics, women's health cycles).
+- **Product categorization audit:** Products marketed one way may functionally belong elsewhere. HealthStitch metrics may need recategorization — "training load" could be "recovery" vs "fitness" depending on context.
+- **Catalog gap analysis pattern:** Compare existing coverage against community-demanded features. Prioritize additions by: (1) API already available, (2) community demand, (3) clinical validation.
+- **Data source accuracy:** When adding products from viral trends, verify each against domain standards (CGM rules). For HealthStitch, verify each new metric against clinical accuracy standards before surfacing to users.

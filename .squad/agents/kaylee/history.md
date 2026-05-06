@@ -54,3 +54,68 @@
 - **`.env.example`**: Added `VITE_API_URL=` with usage comment. No hardcoded tunnel URLs anywhere.
 - **`vite.config.js`**: Added clarifying comment that proxy is local-dev only. No functional changes needed — proxy still works when `VITE_API_URL` is unset.
 - **Pattern**: All API calls already go through `client.js` — no direct `fetch()` calls in components. Single point of change.
+
+## Cross-Project Frontend Knowledge (injected 2026-05-02)
+
+The following learnings come from Frontend agents across Shari's other personal projects.
+
+### From EatDiscounted (Hockney — Frontend Dev)
+- **SSE streaming cleanup:** AbortController on ReadableStream fetch. Abort-on-new-search, 30s timeout, cleanup on unmount, graceful AbortError handling.
+- **Accessibility pass:** `aria-label` on inputs + visually-hidden `<label>`, `aria-live="polite"` + `role="status"` + `aria-busy` on streaming results, `role="img"` on emoji, `aria-current="page"` on nav, `sr-only` on spinners.
+- **Tailwind v4:** `sr-only` built in.
+- **Error vs empty state:** Separate "error" from "zero results." 429 → rate-limit message + retry.
+- **Post-stream collapse:** Conditional rendering per `isDone` — full cards while streaming, collapse after.
+- **Premium design:** 2px borders, hover shadows + scale(1.02-1.03), not-found at 60% opacity.
+- **React 19 lint:** `Promise.resolve().then()` microtask pattern for setState called transitively from useEffect.
+- **OG/Twitter meta tags:** Critical for sharing — add early.
+
+### From MyDailyWin (Mipha — User Dev)
+- **XSS prevention (vanilla JS):** `escapeHtml()` for HTML text, `data-*` + `addEventListener()` for onclick (eliminates JS execution context injection). Audit all innerHTML — only user-controlled data needs escaping.
+- **Modal accessibility:** `<span>` → `<button>` with `aria-label`, `role="dialog"` + `aria-modal="true"`, `aria-labelledby`. Applied to 22 modals.
+- **localStorage hardening:** All JSON.parse in try/catch with defaults. saveState() can fail on quota.
+- **Dark mode:** CSS variables with `data-theme` toggle. shared.css as single source of truth for `:root`.
+- **Responsive breakpoints:** 375px/768px/1024px. Touch targets 44px min. CSS-only.
+- **Gamification celebrations:** Transient `_lastLevelName` (underscore = not persisted). Streak milestones 7/14/30. Confetti 40-50 particles with `prefers-reduced-motion`.
+- **Code consolidation lesson:** Three divergent codebases → single source eliminated storage key mismatches, CSS/JS duplication drift, dead code.
+
+### From MyDailyWin (Urbosa — Admin Dev)
+- **innerHTML loop perf:** `innerHTML +=` is O(n²). Array.push() + join('') is O(n).
+- **ARIA tab navigation:** `role="tablist"`, `role="tab"` + `aria-selected` + `aria-controls`, `role="tabpanel"`.
+- **Helper extraction:** Repeated inline patterns → named functions. getProfileSuffix (10 sites), formatDollar (7 sites).
+- **Responsive admin tabs:** Scrollable strip (not hamburger). Tables: `overflow-x: auto`.
+- **Payout consolidation:** Firestore-first with localStorage fallback. Single functions with graceful degradation.
+
+### From MyDailyWin (Alumni: Dash, Eleven, Max, Violet)
+- Three divergent codebases caused CSS/JS duplication, storage key divergence, dead code accumulation.
+- Random bonus exploit: undo+redo rerolls Math.random().
+
+### From Slotted (Katara — Frontend Dev)
+- **Security audit:** Hardcoded dev email (PII leakage), credential logging, Firebase SW placeholder keys → build-time substitution (`__FIREBASE_*__` + Vite plugin).
+- **Timezone bug:** Append 'Z' to server timestamps lacking timezone suffix for correct UTC interpretation.
+- **Client-side validation:** Prevent past-time booking, endTime > startTime.
+- **npm overrides:** For deep transitive vulnerabilities. Monitor upstream for removal.
+- **Open redirect risk:** OAuth `window.location.href = data.url` — whitelist allowed redirect domains.
+- **TypeScript catch typing:** `err: any` → `AxiosError` or `Error`.
+- **Accessibility gaps found:** StarRating (no ARIA/keyboard), modals (no focus trap), checkboxes (no labels), role="button" (missing Space key).
+
+### From Slotted (Alumni: CJ, Keeley)
+- **React Router:** Public routes before `<ProtectedRoute />` wrapper.
+- **Empty state pattern:** `rounded-2xl border` cards with emoji + heading + CTA. Distinguish "no data" vs "data but no activity."
+- **Soft social language:** "Ready to connect?" not "No friends yet." Product principle.
+- **Design tokens:** Custom color scale, `font-display`, `gradient-btn` class.
+- **Notification type system:** New types need: type union, typeConfig, tab filters, optional action buttons.
+- **Counter-propose UX:** "Update time" (accent) + "Keep original" (muted), confirmation pill.
+
+### From Scrunch (Frenchy — Frontend Dev)
+- **Component decomposition:** Extract from monolith, `React.memo` wrapping — pass stable props.
+- **"Show More" pagination:** `useState(count)` + `.slice(0, count)` — reset on filter change.
+- **Module-level constants:** `EMPTY_SET` avoids per-render allocations for default props.
+- **Toast system:** React context `ToastProvider` + `useToast()`. Wire to all `useMutation` calls.
+- **setState-in-effect → render-time sync:** Track previous value via useState, compare during render.
+- **Fast refresh fix:** Provider in `.tsx`, hook in `.utils.ts`.
+- **Dependency array instability:** `data?.y ?? []` → `useMemo` when used as dependency.
+- **React Query `placeholderData`:** Function searching caches for instant navigation.
+- **Mobile touch targets:** 44px min. Grid-based rating buttons. `flex-wrap` on footer links.
+- **Auth loading gate:** Never return null — `animate-pulse bg-gray-50` placeholder.
+- **Legal TikTok:** No embeds, no creator images — text-only cards with links.
+- **Prose redesign:** Remove filter state from homepage — filters belong on /products.

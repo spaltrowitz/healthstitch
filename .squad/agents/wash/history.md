@@ -100,3 +100,49 @@
 - TestFlight critical path: ATS exception for LAN HTTP + build-time URL config
 
 **Output:** `.squad/decisions/inbox/wash-postgres-testflight-scoping.md`
+
+## Cross-Project Backend Knowledge (injected 2026-05-02)
+
+The following learnings come from Backend agents across Shari's other personal projects.
+
+### From EatDiscounted (Fenster)
+- **API rate limiting:** Per-IP sliding window rate limiting (5/min on primary, 10/min on secondary, 20/min on reads). Return 429 + `Retry-After` header. Dead-code rate limit constants are a red flag — verify they're actually wired in.
+- **In-memory caching:** TTL-based caching (1hr for API results, 5min for sitemaps). Key: `entity::source`. ~10-50x capacity multiplier for quota-limited APIs. Caveat: in-memory cache lost on deploy — needs Redis for multi-instance.
+- **Search API migration:** Google CSE (100 free/day) → Brave Search (2,000 free/month). Lesson: always have a fallback search provider and know quota ceilings.
+- **Direct API integrations:** Some services (Upside, Bilt) have public no-auth REST APIs. Check for direct APIs before building scrapers.
+- **Unicode handling:** NFD decomposition + combining-mark stripping for transliteration. Special cases for ß→ss, æ→ae, œ→oe.
+- **Security:** `.env.local` must be in `.gitignore` — check git history for prior exposure and rotate keys. Hardcoded salts are a risk. Remove dead code referencing sensitive constants.
+
+### From MyDailyWin (Daruk, alumni: Dustin, Frozone)
+- **Firebase Auth + Firestore ownership:** Document ownership via `ownerEmail` + `profiles/{id}/admins/{email}` subcollection. Firestore-only authority — never trust localStorage for authorization.
+- **Cloud Functions (v2 onCall):** Callable Cloud Functions auto-authenticate via Firebase Auth tokens (no CORS headers needed). Cold start ~1-2s acceptable for non-critical paths.
+- **EmailJS → Cloud Function migration:** Move client-side credentials server-side. Cloud Function via `firebase.functions().httpsCallable()`. Lesson: backend-owned credentials allow library swap without frontend changes.
+- **CSP headers:** Content-Security-Policy in `firebase.json` — script-src 'self' + CDN whitelist, no unsafe-inline. Update `connect-src` when migrating APIs.
+- **Firestore rules pitfalls:** `request.auth != null` alone is too permissive. Need per-user ownership scoping + field validation. `create: if true` = unauthenticated write risk. Use `exists()` guard for ownership checks.
+- **XSS via innerHTML:** 45+ instances in MyDailyWin. OAuth-returned fields (e.g., `user.photoURL`) set via innerHTML = XSS vector. Always sanitize user-provided content.
+- **PROFILE_ID validation:** `/^[a-zA-Z0-9_-]+$/` prevents path injection. Apply to user-controlled path segments.
+- **localStorage limitations:** 20+ key patterns, no server-first strategy. Changes invisible until reload due to sync gap.
+
+### From Slotted (Zuko, alumni: Roy, Sam)
+- **Security (critical patterns):** Never hardcode admin secret fallbacks — use fail-closed (403 if env var unset). Strip sensitive fields (OAuth tokens, email, socialBattery) from API responses via `stripSensitive()`. Always add new token fields to the sensitive list.
+- **OAuth token storage:** Supabase Vault encryption (not plaintext DB columns). `oauth_tokens` table stores vault secret UUIDs; SQL helpers are SECURITY DEFINER. Old columns renamed to `_deprecated` for rollback. Supabase deprecating pgsodium TCE — use Vault secret store directly.
+- **CORS:** Whitelist specific origins. Default `callback(null, true)` = security hole. No-origin requests allowed intentionally for mobile/curl via `!origin` check.
+- **Google webhooks:** Must always return 200 (even on errors) or Google deactivates the endpoint. For stale sync tokens (410), clear and retry immediately in the same call.
+- **Notification dedup:** Cascading — 1hr by relatedUserId → 5min by relatedId → 10min by title. Use unique notification types for filter logic.
+- **Race conditions:** AFTER UPDATE trigger + FOR UPDATE lock (atomic DB-level, not application-level). Use `ON CONFLICT` upserts instead of delete-then-insert.
+- **API normalization:** Accept both camelCase and snake_case in request bodies for frontend compatibility.
+- **Account deletion:** CASCADE + cancel created items + notify participants + clear OAuth tokens from Vault + delete blocked entries. Must handle all FK references.
+- **RLS policies:** `get_current_user_id()` SECURITY DEFINER helper maps `auth.uid()` → internal UUID. Separate SELECT/INSERT/UPDATE/DELETE policies per table. Service_role bypasses RLS.
+- **Duplicate detection:** Check for overlapping existing records before insert. Return 409 with existing ID.
+- **Block/mute feature:** `blocked_users` table with RLS + migration. Check on invite + creation actions. Blocking removes existing relationships.
+- **Friendship cooldown:** 30-day between deletion and re-creation via timestamp check.
+
+### From Scrunch (Danny)
+- **Supabase query optimization:** Use `select('id', { count: 'exact', head: true })` for count-only queries — transfers zero rows. Pattern: every count-only use case should use this.
+- **Dedup performance:** Replace O(n²) `filter+findIndex` with O(n) Map-based dedup for list processing.
+- **Parallel API calls:** Convert sequential `for` loops over external APIs to `Promise.all()`. Sequential fetches are the #1 latency killer.
+- **TypeScript type drift:** When TS types drift from DB schema, the app silently degrades. `as unknown as Type` casts mask real errors. Use `supabase gen types` to keep types in sync.
+- **Loading gate anti-pattern:** Blocking render until all queries resolve is the #1 perceived perf killer. Use `placeholderData` + `staleTime` in React Query. Render with defaults immediately, let data swap in reactively.
+- **Search relevance:** Domain-aware keyword extraction with a vocabulary outperforms generic NLP. Reddit: 4-6 keyword terms optimal. Multi-query strategy (primary + fallback, deduped by URL) doubles relevant results.
+- **Fallback UX:** Never disguise navigation/fallback as content items. Show clear error/no-results status with actionable next steps.
+- **Image sourcing:** INCIDecoder GCS = highest hit rate. Ulta CDN: append `?w=400`, check placeholder hash `43eed7447d66573a67e2bc6e10858ab5`. Amazon/Walmart/Target all block automated access.
