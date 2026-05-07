@@ -1,0 +1,89 @@
+TERMS OF SERVICE
+HealthStitch
+Last Updated: May 7, 2026
+
+1. ACCEPTANCE OF TERMS
+By accessing or using the HealthStitch application ("HealthStitch," "we," "us," or "our"), you agree to these Terms of Service. If you do not agree, please do not use the application.
+
+2. SERVICE DESCRIPTION
+HealthStitch is a personal health data aggregation tool that consolidates metrics from multiple wearable devices into a unified dashboard. Features include:
+• Syncing health data from WHOOP and Apple Watch
+• Displaying heart rate variability (HRV), sleep, strain, and recovery metrics
+• Computing per-source baselines and trend analysis
+• Importing health data from CSV and XML exports
+• Device comparison with independent baselines
+
+3. NOT A MEDICAL DEVICE OR SERVICE
+HEALTHSTITCH IS NOT A MEDICAL DEVICE, MEDICAL SERVICE, OR DIAGNOSTIC TOOL. IT IS A PERSONAL DATA VISUALIZATION TOOL ONLY.
+• HealthStitch does not provide medical advice, diagnoses, or treatment recommendations.
+• Health metrics displayed (HRV, recovery scores, sleep quality) are derived from consumer wearable devices and should not be used as a substitute for professional medical advice.
+• Do not make health or medical decisions based solely on data displayed in HealthStitch.
+• Always consult a qualified healthcare provider for medical concerns.
+• Recovery scores and baselines are statistical calculations, not clinical assessments.
+
+4. USER ACCOUNTS
+• You must create an account with an email and password to use HealthStitch.
+• You are responsible for maintaining the confidentiality of your credentials.
+• You must be at least 18 years of age to use HealthStitch.
+• You are responsible for all activity under your account.
+
+5. WEARABLE DEVICE CONNECTIONS
+• By connecting WHOOP, you authorize HealthStitch to access your WHOOP data via their API using OAuth 2.0. You may revoke this access at any time through your WHOOP account settings.
+• By using the iOS companion app, you authorize HealthStitch to read health data from Apple HealthKit on your iPhone. Data is transmitted from your phone to the HealthStitch server.
+• We access wearable data in read-only mode. We never modify, delete, or write data to your wearable accounts.
+• You are responsible for ensuring your wearable devices are functioning correctly and providing accurate data.
+
+6. DATA ACCURACY
+• Health metrics are sourced from consumer wearable devices and may contain inaccuracies.
+• Baseline calculations are statistical averages over rolling time windows and may not reflect your actual health status.
+• WHOOP RMSSD and Apple Watch SDNN measure HRV using different statistical methods — they are not directly comparable, which is why HealthStitch maintains separate baselines per source.
+• We do not validate the accuracy of data from WHOOP or Apple Watch.
+
+7. HEALTH DATA FILE UPLOADS
+• You may upload WHOOP CSV exports and Apple Health XML exports.
+• By uploading these files, you represent that they contain your own health data.
+• Uploaded files are parsed on the server and deleted immediately after processing.
+• You are responsible for the content of files you upload.
+
+8. ACCEPTABLE USE
+You agree not to:
+• Share your account credentials with others
+• Upload health data belonging to another person without their consent
+• Attempt to gain unauthorized access to the server or database
+• Use the service for any commercial, research, or clinical purpose without written consent
+• Reverse-engineer, decompile, or disassemble the application
+
+9. INTELLECTUAL PROPERTY
+The HealthStitch application, including its design, code, algorithms, and baseline computation methods, is owned by us.
+
+10. LIMITATION OF LIABILITY
+HEALTHSTITCH IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+TO THE FULLEST EXTENT PERMITTED BY LAW, WE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SERVICE, INCLUDING BUT NOT LIMITED TO:
+• Inaccurate health metrics or baseline calculations
+• Health decisions made based on data displayed in the application
+• Loss of health data due to server failure, database corruption, or sync errors
+• Interruptions in wearable device synchronization
+• Unauthorized access to your health data
+• Service downtime or unavailability
+
+11. INDEMNIFICATION
+You agree to indemnify and hold harmless HealthStitch from any claims, damages, or expenses arising from your use of the service, your violation of these Terms, or your reliance on health metrics displayed in the application.
+
+12. TERMINATION
+• You may delete your account and all associated health data at any time by contacting us.
+• We reserve the right to suspend or terminate your account at any time for violation of these Terms.
+• Upon termination, all your health data will be permanently deleted from our systems.
+
+13. SELF-HOSTED INFRASTRUCTURE
+HealthStitch runs on self-hosted infrastructure. While we implement reasonable security measures, self-hosted systems may have different risk profiles than managed cloud services. We make no guarantees regarding uptime, availability, or disaster recovery.
+
+14. CHANGES TO TERMS
+We may update these Terms of Service from time to time. Changes will be posted on this page with an updated "Last Updated" date.
+
+15. GOVERNING LAW
+These Terms shall be governed by the laws of the State of New York, without regard to conflict of law provisions.
+
+16. CONTACT US
+For questions about these Terms of Service, contact:
+Email: sharipaltrowitz@gmail.com
