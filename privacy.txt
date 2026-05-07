@@ -1,0 +1,117 @@
+PRIVACY POLICY
+HealthStitch
+Last Updated: May 7, 2026
+
+1. INTRODUCTION
+HealthStitch ("we," "us," or "our") respects your privacy. This Privacy Policy explains how we collect, use, disclose, and protect your personal and health information when you use the HealthStitch application. Given the sensitive nature of health and biometric data, we take additional care to safeguard your information.
+
+2. INFORMATION WE COLLECT
+
+Account Information:
+• Email address
+• Password (stored as a bcrypt hash — we never store your plaintext password)
+
+Health and Biometric Data (from connected wearable devices):
+• Heart Rate Variability (HRV) — RMSSD from WHOOP, SDNN from Apple Watch
+• Resting Heart Rate
+• Blood Oxygen Saturation (SpO2)
+• Skin Temperature
+• Respiratory Rate
+• Sleep sessions (duration, stages: deep, REM, light, awake, efficiency scores)
+• Workout data (heart rate zones, strain scores, active energy, distance)
+• Recovery scores
+• VO2 Max
+
+Derived Data (computed by HealthStitch):
+• 90-day rolling HRV baselines (per source device)
+• 30-day rolling resting heart rate baselines
+• 90-day sleep quality baselines
+• Daily recovery scores
+• Recovery period tracking
+
+File Uploads (optional):
+• WHOOP CSV export files
+• Apple Health XML export files
+• These files are parsed on import and deleted from disk immediately after processing
+
+3. HOW WE USE YOUR INFORMATION
+We use your information solely for the following purposes:
+• Aggregating and displaying your health metrics from multiple wearable devices
+• Computing per-source baselines to give you accurate trend analysis (WHOOP RMSSD and Apple SDNN are tracked independently)
+• Generating daily recovery scores and sleep quality assessments
+• Displaying historical trends and device comparison charts
+• Synchronizing data from connected WHOOP devices on a regular schedule
+
+4. INFORMATION SHARING AND DISCLOSURE
+We do not sell, rent, or trade your personal or health information. Your health data is never shared with any third party for any purpose.
+
+We share information only in the following limited circumstances:
+• WHOOP API: We connect to your WHOOP account via OAuth 2.0 to retrieve your health data. WHOOP's own privacy policy governs the data on their platform. We only read data from WHOOP — we never write to or modify your WHOOP account.
+• Legal Requirements: When required by law, regulation, or legal process
+
+We do NOT share your data with:
+• Advertisers or marketing platforms
+• Insurance companies
+• Employers
+• Any data brokers or analytics services
+• Any other third-party health platforms
+
+5. DATA SECURITY
+We implement the following safeguards to protect your health data:
+• All data is stored on a self-hosted PostgreSQL database on a private home network — your health data never resides on third-party cloud servers
+• Passwords are hashed using bcrypt before storage
+• Authentication uses JWT tokens with 7-day expiry
+• WHOOP OAuth tokens are stored in the database (access and refresh tokens)
+• Remote access (when enabled) uses Cloudflare Tunnel with encrypted HTTPS connections
+• Uploaded health export files are deleted from disk immediately after parsing
+• All API communication uses HTTPS encryption in transit
+
+6. DATA STORAGE AND RESIDENCY
+• All health data is stored locally on a self-hosted server — it does not reside in any cloud provider's infrastructure
+• WHOOP OAuth tokens are stored in the local PostgreSQL database
+• No data is stored in browser localStorage or cookies
+• Remote access via Cloudflare Tunnel does not cache or store any data on Cloudflare's servers — it acts as an encrypted tunnel only
+• Uploaded CSV/XML files are processed in memory and immediately deleted
+
+7. YOUR RIGHTS AND CHOICES
+You have the following rights regarding your personal and health information:
+• Access: You may request a full export of all health data stored about you
+• Correction: You may request correction of inaccurate data
+• Deletion: You may request complete deletion of your account and all associated health data
+• Disconnect Devices: You may revoke WHOOP API access at any time through your WHOOP account settings or by requesting token removal
+• Opt-Out of Sync: You may disable automatic WHOOP synchronization at any time
+• File Upload Control: Health export files are only processed when you explicitly upload them
+
+8. WEARABLE DEVICE DATA
+HealthStitch connects to wearable health devices to provide a unified view of your health metrics:
+
+WHOOP:
+• Connection: OAuth 2.0 (you authorize access through WHOOP's consent screen)
+• Data Retrieved: Recovery, sleep, strain, workout data
+• Sync Frequency: Every 30 minutes (automated)
+• Permissions: Read-only — we never modify your WHOOP data
+• Revocation: You can revoke access at any time via your WHOOP account
+
+Apple Watch (via iOS Companion App):
+• Connection: Apple HealthKit on your iPhone
+• Data Retrieved: HRV, resting HR, active energy, VO2 Max, respiratory rate, sleep, workouts
+• Sync: Manual via the iOS companion app — data is sent from your phone to the server
+• Permissions: Read-only from HealthKit
+• On-Device: Health data is read from HealthKit on your iPhone and transmitted to the server over HTTPS
+
+9. HEALTH DATA SENSITIVITY
+We recognize that health and biometric data is among the most sensitive categories of personal information:
+• We never use health data for profiling, scoring, or automated decision-making
+• We never share health data with third parties (other than the device APIs you explicitly connect)
+• Health data is stored on self-hosted infrastructure, not on third-party cloud platforms
+• We do not monetize health data in any way
+
+10. CHILDREN'S PRIVACY
+HealthStitch is not intended for use by individuals under 18 years of age. We do not knowingly collect personal or health information from minors.
+
+11. CHANGES TO THIS PRIVACY POLICY
+We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated "Last Updated" date.
+
+12. CONTACT US
+If you have questions about this Privacy Policy, your health data, or wish to exercise your privacy rights, contact:
+Email: sharipaltrowitz@gmail.com
