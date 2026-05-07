@@ -78,6 +78,11 @@ export default function App() {
           <button onClick={() => login('register')}>Register</button>
         </div>
         {authError && <p className="error">{authError}</p>}
+        <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8' }}>
+          <a href="/healthstitch/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#64748b', textDecoration: 'none', marginRight: '0.75rem' }}>Privacy</a>
+          <span>·</span>
+          <a href="/healthstitch/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: '#64748b', textDecoration: 'none', marginLeft: '0.75rem' }}>Terms</a>
+        </div>
       </main>
     );
   }
@@ -184,6 +189,14 @@ export default function App() {
             </p>
             <button onClick={logout} style={{ color: '#dc2626', borderColor: '#fecaca' }}>Logout</button>
           </div>
+           {/* Legal */}
+           <div className="card">
+             <h3 style={{ margin: '0 0 0.5rem' }}>Legal</h3>
+             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+               <a href="/healthstitch/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>Privacy Policy</a>
+               <a href="/healthstitch/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>Terms of Service</a>
+             </div>
+           </div>
         </section>
       )}
 
