@@ -7,6 +7,7 @@ import DataUpload from './views/DataUpload';
 import DeviceReference from './views/DeviceReference';
 import RecoveryModeModal from './components/RecoveryModeModal';
 import ColorLegend from './components/ColorLegend';
+import HealthStitchLogo from './components/HealthStitchLogo';
 
 const TABS = [
   { id: 'briefing', label: 'Today' },
@@ -69,7 +70,9 @@ export default function App() {
   if (!token) {
     return (
       <main className="container auth-container">
-        <h1>HealthStitch</h1>
+        <h1>
+          <HealthStitchLogo />
+        </h1>
         <p>Login or register to connect your health devices and see your data unified.</p>
         <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input type="password" placeholder="Password (min 8 chars)" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -90,7 +93,9 @@ export default function App() {
   return (
     <main className="container">
       <header className="header-row">
-        <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>HealthStitch</h1>
+        <h1 onClick={() => setActiveTab('briefing')} style={{ cursor: 'pointer' }}>
+          <HealthStitchLogo />
+        </h1>
         <button onClick={() => setActiveTab('settings')}
           style={{ background: 'transparent', border: 'none', fontSize: '1.3rem', cursor: 'pointer', padding: '0.25rem', opacity: activeTab === 'settings' ? 1 : 0.5 }}
           title="Settings">⚙</button>

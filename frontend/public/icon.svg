@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="HealthStitch">
+  <defs>
+    <linearGradient id="bg" x1="78" y1="72" x2="430" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#f8fafc"/>
+  <rect x="56" y="56" width="400" height="400" rx="96" fill="url(#bg)"/>
+  <path d="M256 383c-62-43-128-97-128-166 0-42 30-74 71-74 26 0 46 12 57 32 11-20 31-32 57-32 41 0 71 32 71 74 0 69-66 123-128 166Z" fill="#ffffff" opacity="0.96"/>
+  <path d="M138 264h58l26-48 43 93 34-69 23 24h52" fill="none" stroke="#2563eb" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
